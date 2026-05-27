@@ -53,3 +53,15 @@
 5.1.2026, 9:51:58 - ERROR - BSONError: input must be a 24 character hex string, 12 byte Uint8Array, or an integer
 5.1.2026, 9:52:04 - ERROR - Couldn't get item from product by id: wall | BSONError: input must be a 24 character hex string, 12 byte Uint8Array, or an integer
 5.1.2026, 9:52:04 - ERROR - BSONError: input must be a 24 character hex string, 12 byte Uint8Array, or an integer
+26.5.2026, 10:55:49 - ERROR - Couldn't connect to Mongo collection
+26.5.2026, 10:55:49 - ERROR - Couldn't query items from product | MongoServerSelectionError: connect ECONNREFUSED 127.0.0.1:27017
+26.5.2026, 10:55:49 - ERROR - Cannot connect to DB
+26.5.2026, 10:55:49 - ERROR - MongoServerSelectionError: connect ECONNREFUSED 127.0.0.1:27017
+26.5.2026, 11:27:15 - ERROR - Cannot connect to DB
+26.5.2026, 11:27:15 - ERROR - Couldn't connect to Mongo collection
+26.5.2026, 11:27:15 - ERROR - Couldn't query items from product | MongoServerSelectionError: connect ECONNREFUSED 127.0.0.1:27017
+26.5.2026, 11:27:15 - ERROR - MongoServerSelectionError: connect ECONNREFUSED 127.0.0.1:27017
+26.5.2026, 11:29:22 - ERROR - Cannot connect to DB
+26.5.2026, 11:29:22 - ERROR - Couldn't connect to Mongo collection
+26.5.2026, 11:29:22 - ERROR - Couldn't query items from product | MongoServerSelectionError: connect ECONNREFUSED 127.0.0.1:27017
+26.5.2026, 11:29:22 - ERROR - MongoServerSelectionError: connect ECONNREFUSED 127.0.0.1:27017
