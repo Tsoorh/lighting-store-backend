@@ -21,6 +21,7 @@ async function getCollection<T extends Document>(collectionName: string): Promis
 async function _connect() :Promise<Db> {
     if (dbConn) return dbConn
     try {
+        console.log("Attempting to connect to MongoDB URL:", config.dbURL);
         const client = await MongoClient.connect(config.dbURL)
         return dbConn = client.db(config.dbName)
     } catch (err) {

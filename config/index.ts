@@ -1,8 +1,8 @@
-import configProd from "./prod"
-import configDev from "./dev"
-
 import dotenv from 'dotenv';
 dotenv.config();
+
+import configProd from "./prod"
+import configDev from "./dev"
 
 export type Config = {
     dbURL:string
