@@ -1,14 +1,18 @@
 import { ObjectId } from "mongodb"
 
+export type Role = 'normal' | 'admin' | 'supplier' | 'architect'
+
 export type Miniuser = {
     _id?: ObjectId
     fullname: string
     username: string
+    role?: Role
+    priceMultiplier?: number
+    showPrices?: boolean
 }
 
 export type User = Miniuser & {
     password: string
-    isAdmin?: boolean
 }
 
 export type UserIdParams = {

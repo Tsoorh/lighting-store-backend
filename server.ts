@@ -25,7 +25,7 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({extended:true}))
 app.set('query parser', 'extended');
-// app.use(setupAsyncLocalStorage)
+app.use(setupAsyncLocalStorage)
 
 //api routing
 import { authRoutes } from "./api/auth/auth.route";

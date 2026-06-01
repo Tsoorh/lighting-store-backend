@@ -39,7 +39,15 @@ async function login(username: string, password: string): Promise<Miniuser> {
         if (!userDetails) throw new Error("Username doesn't exist")
         const match = await bcrypt.compare(password, userDetails.password)
         if (!match) throw new Error("Username or password is incorrect")
-        const miniUser = convertUserToMiniUser(userDetails)
+        
+        const miniUser: Miniuser = {
+            _id: userDetails._id,
+            username: userDetails.username,
+            fullname: userDetails.fullname,
+            role: userDetails.role,
+            priceMultiplier: userDetails.priceMultiplier,
+            showPrices: userDetails.showPrices
+        }
         return miniUser
     } catch (err) {
         loggerService.error("Couldn't login", err)
@@ -55,7 +63,7 @@ async function register(user: User): Promise<Miniuser> {
         
         const hash = await bcrypt.hash(user.password, SALTROUNDS)
         const userToSave: User = { ...user, password: hash }
-        if(userToSave.isAdmin === undefined) userToSave.isAdmin = false
+        if(!userToSave.role) userToSave.role = 'normal'
         
         const userWithId = await userService.add(userToSave)
 
@@ -65,5 +73,3 @@ async function register(user: User): Promise<Miniuser> {
         throw err
     }
 }
-
-

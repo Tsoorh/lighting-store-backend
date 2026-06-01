@@ -6,7 +6,8 @@ import { error } from "node:console";
 
 const COOKIES_OPTIONS_ACCESS: CookieOptions = {
     httpOnly: true,
-    sameSite: 'strict',
+    sameSite: 'lax',
+    path: '/',
     maxAge: 1000 * 60 * 30 // 30 MINUTES
 }
 const COOKIES_OPTIONS_REFRESH: CookieOptions = {
@@ -48,11 +49,11 @@ export async function loginCont(req: Request<CredentialInBody>, res: Response) {
 
 export async function logoutCont(req: Request, res: Response) {
     try {
-        if (!req.cookies?.login && !req.cookies.refreshToken) throw new Error("Couln't logout - no one is logged in")
+        if (!req.cookies?.loginToken && !req.cookies.refreshToken) throw new Error("Couln't logout - no one is logged in")
 
         //clear cookies
-        if (req.cookies?.loginToken) res.clearCookie('loginToken', COOKIES_OPTIONS_ACCESS)
-        if (req.cookies?.refreshToken) res.clearCookie('refreshToken', COOKIES_OPTIONS_REFRESH)
+        if (req.cookies?.loginToken) res.clearCookie('loginToken', { httpOnly: true, sameSite: 'lax', path: '/' })
+        if (req.cookies?.refreshToken) res.clearCookie('refreshToken', { httpOnly: true, sameSite: 'lax', path: '/' })
 
         res.status(200).send("Loggedout successfully")
     } catch (err) {
