@@ -30,9 +30,11 @@ app.use(setupAsyncLocalStorage)
 //api routing
 import { authRoutes } from "./api/auth/auth.route";
 import { productRoutes } from "./api/product/products.route";
+import { userRoutes } from "./api/user/user.route";
 
 app.use('/api/auth',authRoutes)
 app.use('/api/product',productRoutes)
+app.use('/api/user', userRoutes)
 
 
 

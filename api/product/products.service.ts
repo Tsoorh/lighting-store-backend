@@ -21,7 +21,11 @@ export const productService = {
 }
 
 async function query(filterBy: FilterBy = {}) {
-    const criteria = _getCriteria(filterBy)
+    const store = asyncLocalStorage.getStore() as { loggedinUser?: Miniuser } | undefined
+    const user = store?.loggedinUser
+    const isAdmin = user?.role && user.role.trim().toLowerCase() === 'admin'
+
+    const criteria = _getCriteria(filterBy, !!isAdmin)
     const products = await genericProductService.query(criteria) as Product[]
     return products.map(p => _applyPricingLogic(p))
 }
@@ -29,34 +33,42 @@ async function query(filterBy: FilterBy = {}) {
 async function getById(productId: string) {
     const product = await genericProductService.getById(productId) as Product
     if (!product) return product
+
+    const store = asyncLocalStorage.getStore() as { loggedinUser?: Miniuser } | undefined
+    const user = store?.loggedinUser
+    const isAdmin = user?.role && user.role.trim().toLowerCase() === 'admin'
+
+    if (!isAdmin && product.isActive === false) return null
+
     return _applyPricingLogic(product)
 }
 
 function _applyPricingLogic<T extends Product>(product: T): T {
     const store = asyncLocalStorage.getStore() as { loggedinUser?: Miniuser } | undefined
     const user = store?.loggedinUser
-    const role = (user?.role || 'normal').toLowerCase()
+    const role = (user?.role || 'guest').toLowerCase() // Default to guest if no user
 
     const p = { ...product }
 
-    if (role === 'normal' || user?.showPrices === false) {
+    // If no user or guest, don't show prices
+    if (!user || user.showPrices === false) {
         delete p.price
     } else if (p.price !== undefined) {
         if (user?.priceMultiplier !== undefined) {
             // Apply specific multiplier from user DB object
             p.price = p.price * user.priceMultiplier
-        } else if (role === 'supplier') {
-            p.price = p.price * 0.5
-        } else if (role === 'architect') {
-            p.price = p.price * 1.1
         }
+        // No hardcoded fallbacks anymore
     }
 
     return p
 }
 
-function _getCriteria(filterBy: FilterBy) {
+function _getCriteria(filterBy: FilterBy, isAdmin: boolean = false) {
     const criteria: Filter<Product> = {}
+    if (!isAdmin) {
+        criteria.isActive = { $ne: false }
+    }
     if (filterBy.txt) {
         const regex = { $regex: filterBy.txt, $options: 'i' }
         criteria.$or = [

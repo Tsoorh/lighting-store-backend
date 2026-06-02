@@ -3,6 +3,7 @@ import { authService } from "../api/auth/auth.service"
 import type { NextFunction,Response,Request } from "express"
 import type { AsyncLocalStorage } from "async_hooks"
 import type { Miniuser } from "../model/user.model"
+import { loggerService } from "../services/logger.service"
 
 type AlsStore = {
     loggedinUser?: Miniuser
@@ -19,7 +20,9 @@ export function setupAsyncLocalStorage(req:Request, res:Response, next:NextFunct
                 if (alsStore) alsStore.loggedinUser = loggedinUser
             }
         } catch (err) {
-            console.error('Invalid or expired token, processing as normal guest');
+            // Token is expired or invalid. 
+            // We use debug here because TokenExpiredError is expected and handled by the frontend refresh flow.
+            loggerService.debug('Session token expired or invalid');
         }
         next();
     })

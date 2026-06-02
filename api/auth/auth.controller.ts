@@ -17,7 +17,7 @@ const COOKIES_OPTIONS_REFRESH: CookieOptions = {
 
 
 
-export async function registerCont(req: Request<UserInBody>, res: Response) {
+export async function registerCont(req: Request<any, any, {newuser: User}>, res: Response) {
     const newuser: User = req.body.newuser
     try {
         const newMiniUser = await authService.register(newuser)
@@ -28,7 +28,7 @@ export async function registerCont(req: Request<UserInBody>, res: Response) {
     }
 }
 
-export async function loginCont(req: Request<CredentialInBody>, res: Response) {
+export async function loginCont(req: Request<any, any, CredentialInBody>, res: Response) {
     const credentials: LoginCredentials = req.body.credentials
     try {
         const miniUser = await authService.login(credentials.username, credentials.password)
@@ -66,7 +66,7 @@ export async function getLoginToken(req: Request, res: Response) {
     try {
         
         if (!req.cookies?.refreshToken) throw new Error('Please Login')
-            const miniUser: Miniuser = authService.validateToken(req.cookies.refreshToken)
+            const miniUser: Miniuser = authService.validateRefreshToken(req.cookies.refreshToken)
         
         //create Cookies
         const loginToken = authService.getLoginAccessToken(miniUser)

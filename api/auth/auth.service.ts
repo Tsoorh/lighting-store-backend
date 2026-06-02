@@ -13,6 +13,7 @@ export const authService = {
     getLoginAccessToken,
     getLoginRefreshToken,
     validateToken,
+    validateRefreshToken,
     login,
     register
 }
@@ -31,12 +32,17 @@ function validateToken(token: string):Miniuser {
     return jwt.verify(token, ACCESS_TOKEN_KEY) as Miniuser
 }
 
+function validateRefreshToken(token: string): Miniuser {
+    return jwt.verify(token, REFRESH_TOKEN_KEY) as Miniuser
+}
+
 
 
 async function login(username: string, password: string): Promise<Miniuser> {
     try {
         const userDetails = await userService.getByUsername(username);
-        if (!userDetails) throw new Error("Username doesn't exist")
+        if (!userDetails || !userDetails.password) throw new Error("Username or password is incorrect")
+        
         const match = await bcrypt.compare(password, userDetails.password)
         if (!match) throw new Error("Username or password is incorrect")
         
@@ -61,9 +67,8 @@ async function register(user: User): Promise<Miniuser> {
         const userDetails = await userService.getByUsername(user.username);
         if (userDetails) throw new Error("Username already taken")
         
-        const hash = await bcrypt.hash(user.password, SALTROUNDS)
+        const hash = await bcrypt.hash(user.password as string, SALTROUNDS)
         const userToSave: User = { ...user, password: hash }
-        if(!userToSave.role) userToSave.role = 'normal'
         
         const userWithId = await userService.add(userToSave)
 
