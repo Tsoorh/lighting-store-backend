@@ -3,6 +3,7 @@ import { loggerService } from "../../services/logger.service";
 import { productService } from "./products.service";
 import { FullProduct, ProductParams, FilterBy } from "../../model/product.model";
 import { cloudinaryService } from "../../services/cloudinary.service";
+import { ProductSaveSchema } from "./product.schema";
 
 
 
@@ -41,14 +42,20 @@ function _getCloudinaryPublicId(imgId: string): string {
 }
 
 export async function saveProduct(req: Request, res: Response): Promise<void> {
+    const validation = ProductSaveSchema.safeParse(req.body.product)
+    if (!validation.success) {
+        res.status(400).send({ error: 'Invalid product data', details: validation.error.format() })
+        return
+    }
+
     const product = req.body.product as FullProduct
     try {
         let savedProduct: FullProduct
         let imagesToDelete: string[] = []
 
         if (product._id) {
-            // Logic for deleting removed images from Cloudinary
-            const existingProduct = await productService.getById(product._id.toString()) as FullProduct | null
+            // Optimized Diffing: Fetch only imgsUrl field using projection
+            const existingProduct = await productService.getById(product._id.toString(), { projection: { imgsUrl: 1 } }) as Partial<FullProduct> | null
             if (existingProduct) {
                 const oldImages = existingProduct.imgsUrl || []
                 const newImages = product.imgsUrl || []
@@ -59,12 +66,18 @@ export async function saveProduct(req: Request, res: Response): Promise<void> {
             savedProduct = await productService.add(product) as FullProduct
         }
 
-        // Only delete from Cloudinary if DB update was successful
+        // Managed Parallelism for Cloudinary deletions
         if (imagesToDelete.length > 0) {
-            imagesToDelete.forEach((imgId: string) => {
+            const deletionTasks = imagesToDelete.map(imgId => {
                 const publicId = _getCloudinaryPublicId(imgId)
-                cloudinaryService.removeImage(publicId).catch(err => {
-                    loggerService.error(`Failed to delete image ${publicId} from Cloudinary`, err)
+                return cloudinaryService.removeImage(publicId)
+            })
+            
+            Promise.allSettled(deletionTasks).then(results => {
+                results.forEach((result, idx) => {
+                    if (result.status === 'rejected') {
+                        loggerService.error(`Failed to delete image ${imagesToDelete[idx]} from Cloudinary`, result.reason)
+                    }
                 })
             })
         }
@@ -79,14 +92,21 @@ export async function saveProduct(req: Request, res: Response): Promise<void> {
 export async function removeProduct(req: Request<ProductParams>, res: Response) {
     const { productId } = req.params
     try {
-        const existingProduct = await productService.getById(productId) as FullProduct | null
+        // Fetch only imgsUrl for deletion before removing from DB
+        const existingProduct = await productService.getById(productId, { projection: { imgsUrl: 1 } }) as Partial<FullProduct> | null
         const deletedId = await productService.remove(productId)
 
-        if (existingProduct && existingProduct.imgsUrl) {
-            existingProduct.imgsUrl.forEach((imgId: string) => {
+        if (existingProduct && existingProduct.imgsUrl && existingProduct.imgsUrl.length > 0) {
+            const deletionTasks = existingProduct.imgsUrl.map(imgId => {
                 const publicId = _getCloudinaryPublicId(imgId)
-                cloudinaryService.removeImage(publicId).catch(err => {
-                    loggerService.error(`Failed to delete image ${publicId} from Cloudinary on product removal`, err)
+                return cloudinaryService.removeImage(publicId)
+            })
+
+            Promise.allSettled(deletionTasks).then(results => {
+                results.forEach((result, idx) => {
+                    if (result.status === 'rejected') {
+                        loggerService.error(`Failed to delete image from Cloudinary on product removal`, result.reason)
+                    }
                 })
             })
         }

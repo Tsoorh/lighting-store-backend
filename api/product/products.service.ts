@@ -1,4 +1,4 @@
-import { Filter, ObjectId } from "mongodb"
+import { Filter, FindOptions, ObjectId } from "mongodb"
 import { dbService } from "../../services/db.service"
 import { loggerService } from "../../services/logger.service"
 import { genericService } from "../../services/generic.service"
@@ -6,11 +6,9 @@ import { FilterBy, Product } from "../../model/product.model"
 import { asyncLocalStorage } from "../../services/als.service"
 import { Miniuser } from "../../model/user.model"
 
-
-
 const COLLECTION = 'product'
 
-const genericProductService = genericService(COLLECTION)
+const genericProductService = genericService<Product>(COLLECTION)
 
 export const productService = {
     query,
@@ -26,12 +24,12 @@ async function query(filterBy: FilterBy = {}) {
     const isAdmin = user?.role && user.role.trim().toLowerCase() === 'admin'
 
     const criteria = _getCriteria(filterBy, !!isAdmin)
-    const products = await genericProductService.query(criteria) as Product[]
+    const products = await genericProductService.query(criteria)
     return products.map(p => _applyPricingLogic(p))
 }
 
-async function getById(productId: string) {
-    const product = await genericProductService.getById(productId) as Product
+async function getById(productId: string, options: FindOptions = {}) {
+    const product = await genericProductService.getById(productId, options)
     if (!product) return product
 
     const store = asyncLocalStorage.getStore() as { loggedinUser?: Miniuser } | undefined
@@ -58,7 +56,6 @@ function _applyPricingLogic<T extends Product>(product: T): T {
             // Apply specific multiplier from user DB object
             p.price = p.price * user.priceMultiplier
         }
-        // No hardcoded fallbacks anymore
     }
 
     return p

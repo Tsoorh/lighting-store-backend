@@ -1,84 +1,60 @@
 import { ObjectId, WithId } from "mongodb"
 import { dbService } from "./db.service"
 import { loggerService } from "./logger.service"
-import type { OptionalId, Document, Filter } from "mongodb"
-import { Product } from "../model/product.model"
+import type { Document, Filter, FindOptions } from "mongodb"
 
-// type ItemDetails = {
-//     height: number,
-//     width: number,
-//     color: string
-// }
-
-// type Item = {
-//     _id?: ObjectId,
-//     description: string,
-//     label?: string[],
-//     name: string,
-//     price: number,
-//     Details: ItemDetails,
-//     imgUrl: string,
-//     radius: number
-// }
-
-
-export function genericService(collectionName: string) {
-
+export function genericService<T extends Document>(collectionName: string) {
 
     async function _getCollection() {
-        return dbService.getCollection(collectionName)
+        return dbService.getCollection<T>(collectionName)
     }
 
-    async function query<T extends Document>(criteria: Filter<T> = {}): Promise<WithId<T[]>> {
+    async function query(criteria: Filter<T> = {}): Promise<WithId<T>[]> {
         try {
             const collection = await _getCollection()
-            const cursor = collection.find<T>(criteria as any)
-            return await cursor.toArray() as WithId<T[]>
+            return await collection.find<WithId<T>>(criteria).toArray()
         } catch (err) {
             loggerService.error(`Couldn't query items from ${collectionName}`, err)
             throw err
         }
     }
 
-    async function getById(id: string | ObjectId) {
+    async function getById(id: string | ObjectId, options: FindOptions = {}): Promise<WithId<T> | null> {
         try {
             const collection = await _getCollection()
-            const criteria = { _id: new ObjectId(id) }
-            return await collection.findOne(criteria)
+            const criteria = { _id: new ObjectId(id) } as Filter<T>
+            return await collection.findOne<WithId<T>>(criteria, options)
         } catch (err) {
             loggerService.error(`Couldn't get item from ${collectionName} by id: ${id}`, err)
             throw err
         }
     }
 
-    async function add<T extends Document>(item: T): Promise<WithId<T>> {
+    async function add(item: T): Promise<WithId<T>> {
         try {
             const collection = await _getCollection();
             
-            const res = await collection.insertOne(item as any);
+            const res = await collection.insertOne(item as any); 
             if (!res.acknowledged || !res.insertedId) {
                 throw new Error(`Failed to insert into ${collectionName}`);
             }
             
-            const newItem = { ...item, _id: res.insertedId } as WithId<T>;
-            return newItem;
+            return { ...item, _id: res.insertedId } as WithId<T>;
         } catch (err) {
             loggerService.error(`Couldn't add to ${collectionName}`, err);
             throw err;
         }
     }
 
-
-
-    async function update<T extends Document>(item: T): Promise<T> {
+    async function update(item: T & { _id?: string | ObjectId }): Promise<T> {
         try {
+            if (!item._id) throw new Error('Update requires an _id');
             const collection = await _getCollection()
-            const criteria = { _id: new ObjectId(item._id) }
-            const itemToUpdate = { ...item }
+            const criteria = { _id: new ObjectId(item._id) } as Filter<T>
+            const itemToUpdate = { ...item } as any
             delete itemToUpdate._id
 
-            const set = { $set: itemToUpdate }
-            const res = await collection.updateOne(criteria, set)
+            const res = await collection.updateOne(criteria, { $set: itemToUpdate })
 
             if (res.matchedCount === 0) throw new Error(`Couldn't find item to update in ${collectionName}`)
             return item
@@ -91,7 +67,7 @@ export function genericService(collectionName: string) {
     async function remove(id: string | ObjectId) {
         try {
             const collection = await _getCollection()
-            const criteria = { _id: new ObjectId(id) }
+            const criteria = { _id: new ObjectId(id) } as Filter<T>
             const res = await collection.deleteOne(criteria)
 
             if (res.deletedCount === 0) throw new Error(`Couldn't remove item from ${collectionName}. ID not found.`);

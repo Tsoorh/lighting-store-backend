@@ -31,10 +31,21 @@ app.use(setupAsyncLocalStorage)
 import { authRoutes } from "./api/auth/auth.route";
 import { productRoutes } from "./api/product/products.route";
 import { userRoutes } from "./api/user/user.route";
+import { dbService } from "./services/db.service";
 
 app.use('/api/auth',authRoutes)
 app.use('/api/product',productRoutes)
 app.use('/api/user', userRoutes)
+
+// Graceful shutdown
+const shutdown = async (signal: string) => {
+    console.log(`Received ${signal}. Shutting down gracefully...`);
+    await dbService.close();
+    process.exit(0);
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 
 

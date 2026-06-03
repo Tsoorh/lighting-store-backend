@@ -5,9 +5,13 @@ import { convertUserToMiniUser, userService } from "../user/user.service";
 import bcrypt from 'bcrypt';
 
 
-const ACCESS_TOKEN_KEY = process.env.ACCESS_TOKEN_KEY || 'Tiran_Lasry_SecretKEY'
-const REFRESH_TOKEN_KEY = process.env.REFRESH_TOKEN_KEY || 'Tiran_Lasry_SecretKEY'
+const ACCESS_TOKEN_KEY = process.env.ACCESS_TOKEN_KEY
+const REFRESH_TOKEN_KEY = process.env.REFRESH_TOKEN_KEY
 const SALTROUNDS = Number(process.env.SALT_ROUNDS) || 11
+
+if (!ACCESS_TOKEN_KEY || !REFRESH_TOKEN_KEY) {
+    throw new Error('FATAL: JWT secret keys (ACCESS_TOKEN_KEY/REFRESH_TOKEN_KEY) are missing in environment')
+}
 
 export const authService = {
     getLoginAccessToken,
@@ -21,19 +25,32 @@ export const authService = {
 
 
 function getLoginAccessToken(user: Miniuser) {
-    return jwt.sign(user, ACCESS_TOKEN_KEY, { expiresIn: '15m' })
+    const cleanUser = _getCleanMiniUser(user)
+    return jwt.sign(cleanUser, ACCESS_TOKEN_KEY!, { expiresIn: '15m' })
 }
 
 function getLoginRefreshToken(user: Miniuser) {
-    return jwt.sign(user, REFRESH_TOKEN_KEY, { expiresIn: '7d' })
+    const cleanUser = _getCleanMiniUser(user)
+    return jwt.sign(cleanUser, REFRESH_TOKEN_KEY!, { expiresIn: '7d' })
+}
+
+function _getCleanMiniUser(user: Miniuser): Miniuser {
+    return {
+        _id: user._id,
+        fullname: user.fullname,
+        username: user.username,
+        role: user.role,
+        priceMultiplier: user.priceMultiplier,
+        showPrices: user.showPrices
+    }
 }
 
 function validateToken(token: string):Miniuser {
-    return jwt.verify(token, ACCESS_TOKEN_KEY) as Miniuser
+    return jwt.verify(token, ACCESS_TOKEN_KEY!) as unknown as Miniuser
 }
 
 function validateRefreshToken(token: string): Miniuser {
-    return jwt.verify(token, REFRESH_TOKEN_KEY) as Miniuser
+    return jwt.verify(token, REFRESH_TOKEN_KEY!) as unknown as Miniuser
 }
 
 
