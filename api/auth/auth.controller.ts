@@ -4,7 +4,7 @@ import { authService } from "./auth.service";
 import { CredentialInBody, LoginCredentials, Miniuser, User, UserInBody } from "../../model/user.model";
 import { error } from "node:console";
 
-const isProd = process.env.NODE_ENV === 'production';
+const isProd = process.env.NODE_ENV === 'development';
 
 const COOKIES_OPTIONS_ACCESS: CookieOptions = {
     httpOnly: true,
