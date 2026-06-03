@@ -4,9 +4,12 @@ import { authService } from "./auth.service";
 import { CredentialInBody, LoginCredentials, Miniuser, User, UserInBody } from "../../model/user.model";
 import { error } from "node:console";
 
+const isProd = process.env.NODE_ENV === 'production';
+
 const COOKIES_OPTIONS_ACCESS: CookieOptions = {
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: isProd ? 'none' : 'lax', // Use 'none' if backend and frontend are on different domains/ports in prod
+    secure: isProd, // Must be true in production for 'none' sameSite or just general security over HTTPS
     path: '/',
     maxAge: 1000 * 60 * 30 // 30 MINUTES
 }
