@@ -4,6 +4,9 @@ import { productService } from "./products.service";
 import { FullProduct, ProductParams, FilterBy } from "../../model/product.model";
 import { cloudinaryService } from "../../services/cloudinary.service";
 import { ProductSaveSchema } from "./product.schema";
+import { exportService } from "../../services/export.service";
+import { asyncLocalStorage } from "../../services/als.service";
+import { Miniuser } from "../../model/user.model";
 
 
 
@@ -115,5 +118,47 @@ export async function removeProduct(req: Request<ProductParams>, res: Response) 
     } catch (err) {
         loggerService.error(err)
         res.status(400).send("Couldn't remove product")
+    }
+}
+
+export async function exportPdf(req: Request, res: Response) {
+    const { loggedinUser } = asyncLocalStorage.getStore() as { loggedinUser?: Miniuser } || {}
+    const role = loggedinUser?.role?.toLowerCase()
+    if (role !== 'admin' && role !== 'supplier' && role !== 'architect') {
+        return res.status(403).send('Not Authorized')
+    }
+
+    try {
+        const products = await productService.query() as FullProduct[]
+        const title = `מחירון - ${loggedinUser?.fullname || ''}`
+        const buffer = await exportService.generatePDF(products, title)
+
+        res.setHeader('Content-Type', 'application/pdf')
+        res.setHeader('Content-Disposition', 'attachment; filename="price-list.pdf"')
+        res.send(buffer)
+    } catch (err) {
+        loggerService.error('Failed to export PDF', err)
+        res.status(500).send('Internal Server Error')
+    }
+}
+
+export async function exportExcel(req: Request, res: Response) {
+    const { loggedinUser } = asyncLocalStorage.getStore() as { loggedinUser?: Miniuser } || {}
+    const role = loggedinUser?.role?.toLowerCase()
+    if (role !== 'admin' && role !== 'supplier' && role !== 'architect') {
+        return res.status(403).send('Not Authorized')
+    }
+
+    try {
+        const products = await productService.query() as FullProduct[]
+        const title = `מחירון - ${loggedinUser?.fullname || ''}`
+        const buffer = await exportService.generateExcel(products, title)
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        res.setHeader('Content-Disposition', 'attachment; filename="price-list.xlsx"')
+        res.send(buffer)
+    } catch (err) {
+        loggerService.error('Failed to export Excel', err)
+        res.status(500).send('Internal Server Error')
     }
 }
