@@ -33,10 +33,11 @@ async function _fetchImageBuffer(url: string): Promise<Buffer | null> {
 
 function _getImageUrl(imgName: string) {
     const cloudId = process.env.VITE_CLOUDINARY_ID || 'dhixlriwm'
-    // Request .jpg instead of .webp for PDF compatibility
-    if (imgName === 'coming-soon') return `https://res.cloudinary.com/${cloudId}/image/upload/coming-soon.jpg`
-    if (imgName.startsWith('C_') || imgName.startsWith('H_')) return `https://res.cloudinary.com/${cloudId}/image/upload/${imgName}.jpg`
-    return `https://res.cloudinary.com/${cloudId}/image/upload/4G8A${imgName}.jpg`
+    // Request highly compressed thumbnails (.jpg) for extremely fast export generation
+    const transform = 'w_150,h_150,c_limit,q_auto'
+    if (imgName === 'coming-soon') return `https://res.cloudinary.com/${cloudId}/image/upload/${transform}/coming-soon.jpg`
+    if (imgName.startsWith('C_') || imgName.startsWith('H_')) return `https://res.cloudinary.com/${cloudId}/image/upload/${transform}/${imgName}.jpg`
+    return `https://res.cloudinary.com/${cloudId}/image/upload/${transform}/4G8A${imgName}.jpg`
 }
 
 async function generatePDF(products: FullProduct[], title: string): Promise<Buffer> {
