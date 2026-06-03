@@ -32,7 +32,14 @@ const limiter = rateLimit({
 });
 
 // middlewares
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
+    }
+  }
+}));
 app.use(express.static('public'));
 app.use(cors(corsOptions));
 app.use(cookieParser());
