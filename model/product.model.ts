@@ -21,7 +21,7 @@ export type Product = {
 
 export type ProductParams = { productId: string }
 
-type ProductSize = {
+export type ProductSize = {
     height?: number
     diameter?: number
     length?: number
