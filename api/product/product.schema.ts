@@ -6,8 +6,11 @@ const HebrewEnglishSchema = z.object({
 });
 
 const ProductSizeSchema = z.object({
-    height: z.number().nonnegative(),
-    radius: z.number().nonnegative(),
+    height: z.number().nonnegative().optional(),
+    diameter: z.number().nonnegative().optional(),
+    length: z.number().nonnegative().optional(),
+    width: z.number().nonnegative().optional(),
+    upTo: z.number().nonnegative().optional(),
 });
 
 const SocketTypeSchema = z.object({
@@ -27,5 +30,5 @@ export const ProductSaveSchema = z.object({
     imgsUrl: z.array(z.string()),
     size: z.array(ProductSizeSchema).min(1, 'At least one size is required'),
     socketType: SocketTypeSchema,
-    radius: z.number().optional(), // FullProduct has radius: number but also size[]
+    diameter: z.number().optional(), // FullProduct has diameter: number but also size[]
 });
