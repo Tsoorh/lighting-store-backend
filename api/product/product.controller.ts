@@ -47,6 +47,7 @@ function _getCloudinaryPublicId(imgId: string): string {
 export async function saveProduct(req: Request, res: Response): Promise<void> {
     const validation = ProductSaveSchema.safeParse(req.body.product)
     if (!validation.success) {
+        loggerService.error('Product validation failed:', validation.error.format())
         res.status(400).send({ error: 'Invalid product data', details: validation.error.format() })
         return
     }

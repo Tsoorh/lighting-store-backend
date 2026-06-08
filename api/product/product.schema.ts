@@ -5,30 +5,35 @@ const HebrewEnglishSchema = z.object({
     en: z.string().min(1, 'English field is required'),
 });
 
+const OptionalHebrewEnglishSchema = z.object({
+    he: z.string().optional().default(''),
+    en: z.string().optional().default(''),
+});
+
 const ProductSizeSchema = z.object({
-    height: z.number().nonnegative().optional(),
-    diameter: z.number().nonnegative().optional(),
-    length: z.number().nonnegative().optional(),
-    width: z.number().nonnegative().optional(),
-    upTo: z.number().nonnegative().optional(),
+    height: z.number().nonnegative().nullable().optional(),
+    diameter: z.number().nonnegative().nullable().optional(),
+    length: z.number().nonnegative().nullable().optional(),
+    width: z.number().nonnegative().nullable().optional(),
+    upTo: z.number().nonnegative().nullable().optional(),
 });
 
 const SocketTypeSchema = z.object({
-    screwType: z.string(),
-    lightType: z.string(),
+    screwType: z.string().optional().default(''),
+    lightType: z.string().optional().default(''),
 });
 
 export const ProductSaveSchema = z.object({
     _id: z.string().optional(),
     name: HebrewEnglishSchema,
-    description: HebrewEnglishSchema,
-    price: z.number().nonnegative().optional(),
-    isActive: z.boolean().optional().default(true),
+    description: OptionalHebrewEnglishSchema,
+    price: z.number().nonnegative().nullable().optional(),
+    isActive: z.boolean().nullable().optional().default(true),
     category: z.array(HebrewEnglishSchema).min(1, 'At least one category is required'),
-    material: z.array(HebrewEnglishSchema),
-    woodType: z.array(HebrewEnglishSchema),
-    imgsUrl: z.array(z.string()),
+    material: z.array(HebrewEnglishSchema).optional().default([]),
+    woodType: z.array(HebrewEnglishSchema).optional().default([]),
+    imgsUrl: z.array(z.string()).optional().default([]),
     size: z.array(ProductSizeSchema).min(1, 'At least one size is required'),
-    socketType: SocketTypeSchema,
-    diameter: z.number().optional(), // FullProduct has diameter: number but also size[]
+    socketType: SocketTypeSchema.optional(),
+    diameter: z.number().nullable().optional(), // FullProduct has diameter: number but also size[]
 });
