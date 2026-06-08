@@ -37,6 +37,7 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
+      scriptSrc: ["'self'", "https://cdn.jsdelivr.net"],
     }
   }
 }));

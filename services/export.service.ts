@@ -31,10 +31,19 @@ async function _fetchImageBuffer(url: string): Promise<Buffer | null> {
     }
 }
 
-function _getImageUrl(imgName: string) {
+function _getImageUrl(imgsUrl: string[] | undefined) {
     const cloudId = process.env.VITE_CLOUDINARY_ID || 'dhixlriwm'
-    // Request highly compressed thumbnails (.jpg) for extremely fast export generation
     const transform = 'w_150,h_150,c_limit,q_auto'
+    
+    if (!imgsUrl || imgsUrl.length === 0) return `https://res.cloudinary.com/${cloudId}/image/upload/${transform}/coming-soon.jpg`
+    
+    const cleanUrls = imgsUrl.map(url => url.replace(/[\r\n\s]+/g, '').replace(/\.[^/.]+$/, ""))
+    const cPhoto = cleanUrls.find(url => url.startsWith('C_'))
+    const hPhoto = cleanUrls.find(url => url.startsWith('H_'))
+    const numPhoto = cleanUrls.find(url => !url.startsWith('C_') && !url.startsWith('H_'))
+    
+    const imgName = cPhoto || hPhoto || numPhoto || 'coming-soon'
+    
     if (imgName === 'coming-soon') return `https://res.cloudinary.com/${cloudId}/image/upload/${transform}/coming-soon.jpg`
     if (imgName.startsWith('C_') || imgName.startsWith('H_')) return `https://res.cloudinary.com/${cloudId}/image/upload/${transform}/${imgName}.jpg`
     return `https://res.cloudinary.com/${cloudId}/image/upload/${transform}/4G8A${imgName}.jpg`
@@ -45,7 +54,7 @@ async function generatePDF(products: FullProduct[], title: string): Promise<Buff
         try {
             // Pre-fetch all images concurrently to drastically speed up generation
             const uniqueImgUrls = Array.from(new Set(
-                products.map(p => p.imgsUrl && p.imgsUrl.length > 0 ? _getImageUrl(p.imgsUrl[0]) : null).filter(Boolean)
+                products.map(p => _getImageUrl(p.imgsUrl)).filter(Boolean)
             )) as string[];
             
             const imageBuffers = new Map<string, Buffer>();
@@ -89,7 +98,7 @@ async function generatePDF(products: FullProduct[], title: string): Promise<Buff
                     
                     // Image (Left side)
                     if (product.imgsUrl && product.imgsUrl.length > 0) {
-                        const imgUrl = _getImageUrl(product.imgsUrl[0]);
+                        const imgUrl = _getImageUrl(product.imgsUrl);
                         const imgBuffer = imageBuffers.get(imgUrl);
                         if (imgBuffer) {
                             try {
@@ -121,7 +130,7 @@ async function generatePDF(products: FullProduct[], title: string): Promise<Buff
 async function generateExcel(products: FullProduct[], title: string): Promise<Buffer> {
     // Pre-fetch all images concurrently
     const uniqueImgUrls = Array.from(new Set(
-        products.map(p => p.imgsUrl && p.imgsUrl.length > 0 ? _getImageUrl(p.imgsUrl[0]) : null).filter(Boolean)
+        products.map(p => _getImageUrl(p.imgsUrl)).filter(Boolean)
     )) as string[];
     
     const imageBuffers = new Map<string, Buffer>();
@@ -164,7 +173,7 @@ async function generateExcel(products: FullProduct[], title: string): Promise<Bu
 
         // Add Image
         if (product.imgsUrl && product.imgsUrl.length > 0) {
-            const imgUrl = _getImageUrl(product.imgsUrl[0]);
+            const imgUrl = _getImageUrl(product.imgsUrl);
             const imgBuffer = imageBuffers.get(imgUrl);
             if (imgBuffer) {
                 try {
