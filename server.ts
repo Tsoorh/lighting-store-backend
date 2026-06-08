@@ -15,7 +15,7 @@ import path from 'path';
 const app = express();
 
 // **************config****************
-const isProd = process.env.NODE_ENV === 'development';
+const isProd = process.env.NODE_ENV === 'production';
 const corsOptions = {
   origin: isProd 
           ? ["https://tiranlasry.com", "https://www.tiranlasry.com","https://tiran-lasry.onrender.com/","http://localhost:5173","http://127.0.0.1:5173"]

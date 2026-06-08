@@ -58,8 +58,8 @@ async function generatePDF(products: FullProduct[], title: string): Promise<Buff
             const buffers: Buffer[] = [];
 
             // Load Font (Heebo supports Hebrew)
-            const fontPath = path.join(__dirname, '../../lighting-store-frontend/src/assets/fonts/Heebo/static/Heebo-Regular.ttf');
-            const fontBoldPath = path.join(__dirname, '../../lighting-store-frontend/src/assets/fonts/Heebo/static/Heebo-Bold.ttf');
+            const fontPath = path.join(process.cwd(), 'assets/fonts/Heebo-Regular.ttf');
+            const fontBoldPath = path.join(process.cwd(), 'assets/fonts/Heebo-Bold.ttf');
             
             doc.registerFont('Heebo', fontPath);
             doc.registerFont('Heebo-Bold', fontBoldPath);
