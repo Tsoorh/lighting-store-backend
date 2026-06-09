@@ -130,7 +130,7 @@ export async function exportPdf(req: Request, res: Response) {
     }
 
     try {
-        const products = await productService.query() as FullProduct[]
+        const products = await productService.query({ isActive: true }) as FullProduct[]
         const title = `מחירון - ${loggedinUser?.fullname || ''}`
         const buffer = await exportService.generatePDF(products, title)
 
@@ -151,7 +151,7 @@ export async function exportExcel(req: Request, res: Response) {
     }
 
     try {
-        const products = await productService.query() as FullProduct[]
+        const products = await productService.query({ isActive: true }) as FullProduct[]
         const title = `מחירון - ${loggedinUser?.fullname || ''}`
         const buffer = await exportService.generateExcel(products, title)
 

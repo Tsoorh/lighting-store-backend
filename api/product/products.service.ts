@@ -63,7 +63,12 @@ function _applyPricingLogic<T extends Product>(product: T): T {
 
 function _getCriteria(filterBy: FilterBy, isAdmin: boolean = false) {
     const criteria: Filter<Product> = {}
-    if (!isAdmin) {
+
+    if (filterBy.isActive === true) {
+        criteria.isActive = { $ne: false }
+    } else if (filterBy.isActive === false) {
+        criteria.isActive = false
+    } else if (!isAdmin) {
         criteria.isActive = { $ne: false }
     }
     if (filterBy.txt) {
