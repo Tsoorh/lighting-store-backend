@@ -44,17 +44,19 @@ async function getById(productId: string, options: FindOptions = {}) {
 function _applyPricingLogic<T extends Product>(product: T): T {
     const store = asyncLocalStorage.getStore() as { loggedinUser?: Miniuser } | undefined
     const user = store?.loggedinUser
-    const role = (user?.role || 'guest').toLowerCase() // Default to guest if no user
 
     const p = { ...product }
 
     // If no user or guest, don't show prices
     if (!user || user.showPrices === false) {
         delete p.price
-    } else if (p.price !== undefined) {
+    } else if (p.price && Array.isArray(p.price)) {
         if (user?.priceMultiplier !== undefined) {
-            // Apply specific multiplier from user DB object
-            p.price = p.price * user.priceMultiplier
+            // Apply specific multiplier from user DB object to each price entry
+            p.price = p.price.map(priceEntry => ({
+                ...priceEntry,
+                amount: priceEntry.amount * (user.priceMultiplier as number)
+            }))
         }
     }
 
@@ -81,7 +83,7 @@ function _getCriteria(filterBy: FilterBy, isAdmin: boolean = false) {
         ]
     }
     if (filterBy.price) {
-        criteria.price = { $lte: filterBy.price }
+        criteria.price = { $elemMatch: { amount: { $lte: filterBy.price } } }
     }
     if (filterBy.category) {
         const regex= { $regex: filterBy.category, $options: 'i' }

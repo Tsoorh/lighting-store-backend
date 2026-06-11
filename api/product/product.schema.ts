@@ -23,11 +23,16 @@ const SocketTypeSchema = z.object({
     lightType: z.string().optional().default(''),
 });
 
+const ProductPriceSchema = z.object({
+    wood: HebrewEnglishSchema,
+    amount: z.number().nonnegative(),
+});
+
 export const ProductSaveSchema = z.object({
     _id: z.string().optional(),
     name: HebrewEnglishSchema,
     description: OptionalHebrewEnglishSchema,
-    price: z.number().nonnegative().nullable().optional(),
+    price: z.array(ProductPriceSchema).optional().default([]),
     isActive: z.boolean().nullable().optional().default(true),
     category: z.array(HebrewEnglishSchema).min(1, 'At least one category is required'),
     material: z.array(HebrewEnglishSchema).optional().default([]),

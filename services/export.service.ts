@@ -94,28 +94,38 @@ async function generatePDF(products: FullProduct[], title: string): Promise<Buff
                 doc.moveDown();
 
                 for (const product of catProducts) {
-                    const y = doc.y;
-                    
-                    // Image (Left side)
-                    if (product.imgsUrl && product.imgsUrl.length > 0) {
-                        const imgUrl = _getImageUrl(product.imgsUrl);
-                        const imgBuffer = imageBuffers.get(imgUrl);
-                        if (imgBuffer) {
-                            try {
-                                doc.image(imgBuffer, 50, y, { fit: [100, 100] });
-                            } catch (imgErr) {
-                                console.error(`Skipping image draw for product ${product.name.he}`, imgErr);
+                    const prices = (product.price && Array.isArray(product.price) && product.price.length > 0)
+                        ? product.price
+                        : [{ wood: { he: '', en: '' }, amount: 0 }]
+
+                    for (const priceEntry of prices) {
+                        const y = doc.y;
+                        
+                        // Image (Left side)
+                        if (product.imgsUrl && product.imgsUrl.length > 0) {
+                            const imgUrl = _getImageUrl(product.imgsUrl);
+                            const imgBuffer = imageBuffers.get(imgUrl);
+                            if (imgBuffer) {
+                                try {
+                                    doc.image(imgBuffer, 50, y, { fit: [100, 100] });
+                                } catch (imgErr) {
+                                    console.error(`Skipping image draw for product ${product.name.he}`, imgErr);
+                                }
                             }
                         }
+
+                        // Product Details (Right side for Hebrew)
+                        const displayName = priceEntry.wood.he 
+                            ? `${product.name.he} - ${priceEntry.wood.he}`
+                            : product.name.he
+
+                        doc.font('Heebo-Bold').fontSize(12).text(_reverseHebrew(displayName), 350, y, { align: 'right', width: 150 });
+                        doc.font('Heebo').fontSize(10).text(_reverseHebrew(`מחיר: ₪${priceEntry.amount?.toLocaleString() || 'N/A'}`), 350, y + 20, { align: 'right', width: 150 });
+                        doc.font('Heebo').fontSize(10).text(_reverseHebrew(`הברגה: ${product.socketType?.screwType || 'N/A'}`), 350, y + 35, { align: 'right', width: 150 });
+
+                        doc.moveDown(6);
+                        if (doc.y > 700) doc.addPage();
                     }
-
-                    // Product Details (Right side for Hebrew)
-                    doc.font('Heebo-Bold').fontSize(12).text(_reverseHebrew(product.name.he), 350, y, { align: 'right', width: 150 });
-                    doc.font('Heebo').fontSize(10).text(_reverseHebrew(`מחיר: ₪${product.price?.toLocaleString() || 'N/A'}`), 350, y + 20, { align: 'right', width: 150 });
-                    doc.font('Heebo').fontSize(10).text(_reverseHebrew(`הברגה: ${product.socketType?.screwType || 'N/A'}`), 350, y + 35, { align: 'right', width: 150 });
-
-                    doc.moveDown(6);
-                    if (doc.y > 700) doc.addPage();
                 }
                 doc.moveDown();
             }
@@ -161,33 +171,43 @@ async function generateExcel(products: FullProduct[], title: string): Promise<Bu
     sheet.getColumn(5).width = 15; // Price
 
     for (const product of products) {
-        const row = sheet.addRow([
-            '', 
-            product.name.he, 
-            product.category?.map(c => c.he).join(', ') || '',
-            product.socketType?.screwType || '',
-            product.price
-        ]);
-        row.height = 80;
-        row.alignment = { vertical: 'middle', horizontal: 'center' };
+        const prices = (product.price && Array.isArray(product.price) && product.price.length > 0)
+            ? product.price
+            : [{ wood: { he: '', en: '' }, amount: 0 }]
 
-        // Add Image
-        if (product.imgsUrl && product.imgsUrl.length > 0) {
-            const imgUrl = _getImageUrl(product.imgsUrl);
-            const imgBuffer = imageBuffers.get(imgUrl);
-            if (imgBuffer) {
-                try {
-                    const imageId = workbook.addImage({
-                        buffer: imgBuffer as any,
-                        extension: 'jpeg',
-                    });
-                    sheet.addImage(imageId, {
-                        tl: { col: 0, row: row.number - 1 },
-                        ext: { width: 100, height: 100 },
-                        editAs: 'undefined'
-                    });
-                } catch(e) {
-                    console.error("Failed to draw image on excel", e)
+        for (const priceEntry of prices) {
+            const displayName = priceEntry.wood.he 
+                ? `${product.name.he} - ${priceEntry.wood.he}`
+                : product.name.he
+
+            const row = sheet.addRow([
+                '', 
+                displayName, 
+                product.category?.map(c => c.he).join(', ') || '',
+                product.socketType?.screwType || '',
+                priceEntry.amount
+            ]);
+            row.height = 80;
+            row.alignment = { vertical: 'middle', horizontal: 'center' };
+
+            // Add Image
+            if (product.imgsUrl && product.imgsUrl.length > 0) {
+                const imgUrl = _getImageUrl(product.imgsUrl);
+                const imgBuffer = imageBuffers.get(imgUrl);
+                if (imgBuffer) {
+                    try {
+                        const imageId = workbook.addImage({
+                            buffer: imgBuffer as any,
+                            extension: 'jpeg',
+                        });
+                        sheet.addImage(imageId, {
+                            tl: { col: 0, row: row.number - 1 },
+                            ext: { width: 100, height: 100 },
+                            editAs: 'undefined'
+                        });
+                    } catch(e) {
+                        console.error("Failed to draw image on excel", e)
+                    }
                 }
             }
         }

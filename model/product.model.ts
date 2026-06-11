@@ -12,11 +12,16 @@ type hebrewEnglishObj = {
     en:string
 }
 
+export type ProductPrice = {
+    wood: hebrewEnglishObj
+    amount: number
+}
+
 export type Product = {
     _id?: ObjectId
     name: hebrewEnglishObj
     description: hebrewEnglishObj
-    price?: number
+    price?: ProductPrice[]
     isActive?: boolean
 }
 
