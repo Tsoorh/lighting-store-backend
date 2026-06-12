@@ -15,6 +15,7 @@ type hebrewEnglishObj = {
 export type ProductPrice = {
     wood: hebrewEnglishObj
     amount: number
+    size?: string
 }
 
 export type Product = {

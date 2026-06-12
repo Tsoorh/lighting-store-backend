@@ -26,6 +26,7 @@ const SocketTypeSchema = z.object({
 const ProductPriceSchema = z.object({
     wood: HebrewEnglishSchema,
     amount: z.number().nonnegative(),
+    size: z.string().optional(),
 });
 
 export const ProductSaveSchema = z.object({
