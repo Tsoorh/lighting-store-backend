@@ -16,7 +16,7 @@ const app = express();
 app.set('trust proxy', 1);
 
 // **************config****************
-const isProd = process.env.NODE_ENV === 'production';
+const isProd = process.env.NODE_ENV === 'development';
 const corsOptions = {
   origin: isProd 
           ? [
