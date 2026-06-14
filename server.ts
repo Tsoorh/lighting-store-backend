@@ -19,7 +19,15 @@ app.set('trust proxy', 1);
 const isProd = process.env.NODE_ENV === 'production';
 const corsOptions = {
   origin: isProd 
-          ? ["https://tiranlasry.com", "https://www.tiranlasry.com","https://tiran-lasry.onrender.com/","http://localhost:5173","http://127.0.0.1:5173"]
+          ? [
+              "https://tiranlasry.com", 
+              "https://www.tiranlasry.com",
+              "https://tiran-lasry.pages.dev",
+              "https://tiran-lasry-frontend.pages.dev",
+              "https://tiran-lasry.onrender.com/",
+              "http://localhost:5173",
+              "http://127.0.0.1:5173"
+            ]
           : ["http://localhost:5173", "http://127.0.0.1:5173"],
   credentials: true,
 };
