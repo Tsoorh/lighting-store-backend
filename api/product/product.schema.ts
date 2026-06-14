@@ -15,6 +15,7 @@ const ProductSizeSchema = z.object({
     diameter: z.number().nonnegative().nullable().optional(),
     length: z.number().nonnegative().nullable().optional(),
     width: z.number().nonnegative().nullable().optional(),
+    depth: z.number().nonnegative().nullable().optional(),
     upTo: z.number().nonnegative().nullable().optional(),
 });
 

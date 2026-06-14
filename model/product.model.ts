@@ -33,6 +33,7 @@ export type ProductSize = {
     diameter?: number
     length?: number
     width?: number
+    depth?: number
     upTo?: number
 }
 type SocketType = {
