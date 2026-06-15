@@ -24,11 +24,20 @@ function _reverseHebrew(str: string): string {
 async function _fetchImageBuffer(url: string): Promise<Buffer | null> {
     try {
         const response = await axios.get(url, { responseType: 'arraybuffer' });
-        return Buffer.from(response.data, 'binary');
+        return Buffer.from(response.data);
     } catch (err) {
         console.error(`Failed to fetch image from ${url}`, err);
         return null;
     }
+}
+
+function _isSupportedImage(buffer: Buffer): boolean {
+    if (!buffer || buffer.length < 8) return false;
+    // JPEG: FF D8
+    if (buffer[0] === 0xFF && buffer[1] === 0xD8) return true;
+    // PNG: 89 50 4E 47 0D 0A 1A 0A
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) return true;
+    return false;
 }
 
 function _getImageUrl(imgsUrl: string[] | undefined) {
@@ -61,16 +70,16 @@ async function generatePDF(products: FullProduct[], title: string): Promise<Buff
             await Promise.allSettled(uniqueImgUrls.map(async url => {
                 const buffer = await _fetchImageBuffer(url);
                 if (buffer) {
-                    // Quick check if buffer looks like a valid image (JPEG starts with 0xFFD8)
-                    if (buffer[0] === 0xFF && buffer[1] === 0xD8) {
+                    if (_isSupportedImage(buffer)) {
                         imageBuffers.set(url, buffer);
                     } else {
-                        console.warn(`Fetched buffer for ${url} is not a valid JPEG. Skipping.`);
+                        console.warn(`Fetched buffer for ${url} is not a supported format (JPEG/PNG). Skipping.`);
                     }
                 }
             }));
 
             const doc = new PDFDocument({ margin: 50, size: 'A4' });
+            doc.on('error', reject);
             const buffers: Buffer[] = [];
 
             const fontPath = path.join(process.cwd(), 'assets/fonts/Heebo-Regular.ttf');

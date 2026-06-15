@@ -138,7 +138,7 @@ export async function exportPdf(req: Request, res: Response) {
         res.setHeader('Content-Disposition', 'attachment; filename="price-list.pdf"')
         res.send(buffer)
     } catch (err) {
-        loggerService.error('Failed to export PDF', err)
+        loggerService.error('Failed to export PDF', err instanceof Error ? { message: err.message, stack: err.stack } : err)
         res.status(500).send('Internal Server Error')
     }
 }
