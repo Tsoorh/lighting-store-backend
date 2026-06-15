@@ -134,7 +134,7 @@ export async function exportPdf(req: Request, res: Response) {
         const title = `מחירון - ${loggedinUser?.fullname || ''}`
         const buffer = await exportService.generatePDF(products, title)
 
-        res.setHeader('Content-Type', 'application/pdf')
+        res.setHeader('Content-Type', 'application/octet-stream')
         res.setHeader('Content-Disposition', 'attachment; filename="price-list.pdf"')
         res.send(buffer)
     } catch (err) {
