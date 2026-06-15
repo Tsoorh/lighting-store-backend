@@ -12,7 +12,10 @@ type AlsStore = {
 export function setupAsyncLocalStorage(req:Request, res:Response, next:NextFunction) {
     const storage: AlsStore = {}
     asyncLocalStorage.run(storage, () => {
-        if (!req.cookies?.loginToken) return next()
+        if (!req.cookies?.loginToken) {
+            if (req.url.includes('/api/')) loggerService.debug(`No loginToken cookie for request: ${req.url}`);
+            return next();
+        }
         try {
             const loggedinUser = authService.validateToken(req.cookies.loginToken);
             if (loggedinUser) {
@@ -20,9 +23,7 @@ export function setupAsyncLocalStorage(req:Request, res:Response, next:NextFunct
                 if (alsStore) alsStore.loggedinUser = loggedinUser
             }
         } catch (err) {
-            // Token is expired or invalid. 
-            // We use debug here because TokenExpiredError is expected and handled by the frontend refresh flow.
-            loggerService.debug('Session token expired or invalid');
+            loggerService.debug(`Session token expired or invalid for ${req.url}`);
         }
         next();
     })

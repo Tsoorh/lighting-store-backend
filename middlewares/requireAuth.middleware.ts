@@ -6,7 +6,10 @@ import { Miniuser } from "../model/user.model"
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
     const { loggedinUser } = asyncLocalStorage.getStore() as { loggedinUser?: Miniuser } || {}
-    if (!loggedinUser) return res.status(401).send('Not Authenticated')
+    if (!loggedinUser) {
+        loggerService.debug(`requireAuth failed for ${req.url} - no user in ALS`);
+        return res.status(401).send('Not Authenticated');
+    }
     next()
 }
 
