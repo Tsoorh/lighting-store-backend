@@ -52,16 +52,14 @@ export async function loginCont(req: Request<any, any, CredentialInBody>, res: R
 
 export async function logoutCont(req: Request, res: Response) {
     try {
-        if (!req.cookies?.loginToken && !req.cookies.refreshToken) throw new Error("Couln't logout - no one is logged in")
+        // Clear cookies regardless of whether they exist in the request
+        res.clearCookie('loginToken', COOKIES_OPTIONS_ACCESS)
+        res.clearCookie('refreshToken', COOKIES_OPTIONS_REFRESH)
 
-        //clear cookies
-        if (req.cookies?.loginToken) res.clearCookie('loginToken', COOKIES_OPTIONS_ACCESS)
-        if (req.cookies?.refreshToken) res.clearCookie('refreshToken', COOKIES_OPTIONS_REFRESH)
-
-        res.status(200).send("Loggedout successfully")
+        res.status(200).send("Logged out successfully")
     } catch (err) {
         loggerService.error("Couldn't logout: ", err)
-        throw err
+        res.status(500).send("Failed to logout")
     }
 }
 
