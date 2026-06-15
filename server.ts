@@ -32,6 +32,9 @@ const corsOptions = {
   credentials: true,
 };
 
+// CORS must be one of the first middlewares to handle preflight OPTIONS requests
+app.use(cors(corsOptions));
+
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 500, // Limit each IP to 500 requests per `window` (here, per 15 minutes)
@@ -52,7 +55,6 @@ app.use(helmet({
   }
 }));
 app.use(express.static('public'));
-app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({extended:true}))
@@ -86,9 +88,16 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 
 
 // * For SPA (Single Page Application) - catch all routes and send to the index.html
-app.get(/(.*)/, (req, res) => {
+// Ensure we don't hijack API requests that should have been 404s
+app.get(/^(?!\/api).*/, (req, res) => {
     res.sendFile(path.resolve('public/index.html'))
 })
+
+// Custom 404 for API
+app.use('/api', (req, res) => {
+    loggerService.warn(`404 - API Route not found: ${req.method} ${req.originalUrl}`);
+    res.status(404).send({ error: 'API route not found' });
+});
 
 // Global Error Handler
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
