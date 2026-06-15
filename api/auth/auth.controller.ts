@@ -8,8 +8,8 @@ const isProd = process.env.NODE_ENV === 'production';
 
 const COOKIES_OPTIONS_ACCESS: CookieOptions = {
     httpOnly: true,
-    sameSite: isProd ? 'none' : 'lax', // Use 'none' if backend and frontend are on different domains/ports in prod
-    secure: isProd, // Must be true in production for 'none' sameSite or just general security over HTTPS
+    sameSite: isProd ? 'lax' : 'lax', // 'lax' works perfectly now because api.tiranlasry.com and tiranlasry.com share the same parent domain
+    secure: isProd,
     path: '/',
     maxAge: 1000 * 60 * 30 // 30 MINUTES
 }

@@ -22,6 +22,7 @@ const corsOptions = {
           ? [
               "https://tiranlasry.com", 
               "https://www.tiranlasry.com",
+              "https://api.tiranlasry.com",
               "https://tiran-lasry.pages.dev",
               "https://tiran-lasry-frontend.pages.dev",
               "http://localhost:5173",
