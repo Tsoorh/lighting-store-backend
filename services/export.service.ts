@@ -33,7 +33,8 @@ async function _fetchImageBuffer(url: string): Promise<Buffer | null> {
 
 function _getImageUrl(imgsUrl: string[] | undefined) {
     const cloudId = process.env.CLOUDINARY_KEY || 'dhixlriwm'
-    const transform = 'w_300,h_300,c_limit,q_auto'
+    // Force .jpg extension in the URL and in the transformation for PDF compatibility
+    const transform = 'w_300,h_300,c_limit,q_auto,f_jpg'
     
     if (!imgsUrl || imgsUrl.length === 0) return `https://res.cloudinary.com/${cloudId}/image/upload/${transform}/coming-soon.jpg`
     
@@ -59,7 +60,14 @@ async function generatePDF(products: FullProduct[], title: string): Promise<Buff
             const imageBuffers = new Map<string, Buffer>();
             await Promise.allSettled(uniqueImgUrls.map(async url => {
                 const buffer = await _fetchImageBuffer(url);
-                if (buffer) imageBuffers.set(url, buffer);
+                if (buffer) {
+                    // Quick check if buffer looks like a valid image (JPEG starts with 0xFFD8)
+                    if (buffer[0] === 0xFF && buffer[1] === 0xD8) {
+                        imageBuffers.set(url, buffer);
+                    } else {
+                        console.warn(`Fetched buffer for ${url} is not a valid JPEG. Skipping.`);
+                    }
+                }
             }));
 
             const doc = new PDFDocument({ margin: 50, size: 'A4' });
