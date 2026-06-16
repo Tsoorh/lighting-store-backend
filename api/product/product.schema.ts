@@ -28,6 +28,7 @@ const ProductPriceSchema = z.object({
     wood: HebrewEnglishSchema,
     amount: z.number().nonnegative(),
     size: z.string().optional(),
+    sku: z.string().optional(),
 });
 
 export const ProductSaveSchema = z.object({

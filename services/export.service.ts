@@ -136,6 +136,9 @@ async function generatePDF(products: FullProduct[], title: string): Promise<Buff
 
                         // Use relative coordinates to avoid overflow
                         doc.font('Heebo-Bold').fontSize(12).text(displayName, 160, startY, { width: 350 });
+                        if (priceEntry.sku) {
+                            doc.font('Heebo').fontSize(10).text(`SKU: ${priceEntry.sku}`, 160, doc.y + 2);
+                        }
                         doc.font('Heebo').fontSize(10).text(`Price: ₪${priceEntry.amount?.toLocaleString() || 'N/A'}`, 160, doc.y + 2);
                         doc.font('Heebo').fontSize(10).text(`Socket: ${product.socketType?.screwType || 'N/A'}`, 160, doc.y + 2);
 
@@ -181,14 +184,15 @@ async function generateExcel(products: FullProduct[], title: string): Promise<Bu
     sheet.getRow(1).height = 30;
 
     // Header Row (English)
-    const headerRow = sheet.addRow(['Image', 'Product Name', 'Category', 'Socket', 'Price']);
+    const headerRow = sheet.addRow(['Image', 'SKU', 'Product Name', 'Category', 'Socket', 'Price']);
     headerRow.font = { bold: true };
     headerRow.alignment = { horizontal: 'center' };
     sheet.getColumn(1).width = 20; // Image
-    sheet.getColumn(2).width = 40; // Name
-    sheet.getColumn(3).width = 25; // Category
-    sheet.getColumn(4).width = 20; // Socket
-    sheet.getColumn(5).width = 15; // Price
+    sheet.getColumn(2).width = 15; // SKU
+    sheet.getColumn(3).width = 40; // Name
+    sheet.getColumn(4).width = 25; // Category
+    sheet.getColumn(5).width = 20; // Socket
+    sheet.getColumn(6).width = 15; // Price
 
     for (const product of products) {
         const prices = (product.price && Array.isArray(product.price) && product.price.length > 0)
@@ -202,6 +206,7 @@ async function generateExcel(products: FullProduct[], title: string): Promise<Bu
 
             const row = sheet.addRow([
                 '', 
+                priceEntry.sku || '',
                 displayName, 
                 product.category?.map(c => c.en).join(', ') || '',
                 product.socketType?.screwType || '',
