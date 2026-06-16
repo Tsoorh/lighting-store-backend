@@ -51,8 +51,9 @@ function _applyPricingLogic<T extends Product>(product: T): T {
     if (!user || user.showPrices === false) {
         if (p.price && Array.isArray(p.price)) {
             p.price = p.price.map(priceEntry => {
-                const { amount, ...rest } = priceEntry
-                return rest as any
+                const cleanPrice: any = { ...priceEntry }
+                delete cleanPrice.amount
+                return cleanPrice
             })
         }
     } else if (p.price && Array.isArray(p.price)) {
