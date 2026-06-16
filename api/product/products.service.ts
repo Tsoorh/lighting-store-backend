@@ -49,7 +49,12 @@ function _applyPricingLogic<T extends Product>(product: T): T {
 
     // If no user or guest, don't show prices
     if (!user || user.showPrices === false) {
-        delete p.price
+        if (p.price && Array.isArray(p.price)) {
+            p.price = p.price.map(priceEntry => {
+                const { amount, ...rest } = priceEntry
+                return rest as any
+            })
+        }
     } else if (p.price && Array.isArray(p.price)) {
         if (user?.priceMultiplier !== undefined) {
             // Apply specific multiplier from user DB object to each price entry
