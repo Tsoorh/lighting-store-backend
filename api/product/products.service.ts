@@ -59,10 +59,17 @@ function _applyPricingLogic<T extends Product>(product: T): T {
     } else if (p.price && Array.isArray(p.price)) {
         if (user?.priceMultiplier !== undefined) {
             // Apply specific multiplier from user DB object to each price entry
-            p.price = p.price.map(priceEntry => ({
-                ...priceEntry,
-                amount: priceEntry.amount * (user.priceMultiplier as number)
-            }))
+            const isSupplierOrArchitect = user?.role === 'supplier' || user?.role === 'architect'
+            p.price = p.price.map(priceEntry => {
+                let newAmount = priceEntry.amount * (user.priceMultiplier as number)
+                if (isSupplierOrArchitect) {
+                    newAmount = Math.round(newAmount)
+                }
+                return {
+                    ...priceEntry,
+                    amount: newAmount
+                }
+            })
         }
     }
 
