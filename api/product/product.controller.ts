@@ -40,9 +40,9 @@ export async function getProductById(req: Request<ProductParams>, res: Response)
 }
 
 function _getCloudinaryPublicId(imgId: string): string {
-    const cleanId = imgId.replace(/[\r\n\s]+/g, '').replace(/\.[^/.]+$/, '')
-    if (cleanId.startsWith('C_') || cleanId.startsWith('H_') || cleanId.startsWith('S_')) return cleanId
-    if (cleanId.startsWith('4G8A')) return cleanId
+    const cleanId = imgId.replace(/[\r\n\s]+/g, '').replace(/\.[^/.]+$/, '').replace(/^4G8A/i, '')
+    const upper = cleanId.toUpperCase()
+    if (upper.startsWith('C_') || upper.startsWith('H_') || upper.startsWith('S_')) return cleanId
     return `4G8A${cleanId}`
 }
 

@@ -47,17 +47,19 @@ function _getImageUrl(imgsUrl: string[] | undefined) {
     
     if (!imgsUrl || imgsUrl.length === 0) return `https://res.cloudinary.com/${cloudId}/image/upload/${transform}/coming-soon.jpg`
     
-    const cleanUrls = imgsUrl.map(url => url.replace(/[\r\n\s]+/g, '').replace(/\.[^/.]+$/, ""))
-    const cPhoto = cleanUrls.find(url => url.startsWith('C_'))
-    const hPhoto = cleanUrls.find(url => url.startsWith('H_'))
-    const numPhoto = cleanUrls.find(url => !url.startsWith('C_') && !url.startsWith('H_') && !url.startsWith('S_'))
-    const sPhoto = cleanUrls.find(url => url.startsWith('S_'))
+    const cleanUrls = imgsUrl.map(url => url.replace(/[\r\n\s]+/g, '').replace(/\.[^/.]+$/, "").replace(/^4G8A/i, ""))
+    const cPhoto = cleanUrls.find(url => url.toUpperCase().startsWith('C_'))
+    const hPhoto = cleanUrls.find(url => url.toUpperCase().startsWith('H_'))
+    const numPhoto = cleanUrls.find(url => !url.toUpperCase().startsWith('C_') && !url.toUpperCase().startsWith('H_') && !url.toUpperCase().startsWith('S_'))
+    const sPhoto = cleanUrls.find(url => url.toUpperCase().startsWith('S_'))
     
     const imgName = cPhoto || hPhoto || numPhoto || sPhoto || 'coming-soon'
     
     if (imgName === 'coming-soon') return `https://res.cloudinary.com/${cloudId}/image/upload/${transform}/coming-soon.jpg`
-    if (imgName.startsWith('C_') || imgName.startsWith('H_') || imgName.startsWith('S_')) return `https://res.cloudinary.com/${cloudId}/image/upload/${transform}/${imgName}.jpg`
-    return `https://res.cloudinary.com/${cloudId}/image/upload/${transform}/4G8A${imgName}.jpg`
+    const nameWithout4G8A = imgName.replace(/^4G8A/i, '')
+    const upper = nameWithout4G8A.toUpperCase()
+    if (upper.startsWith('C_') || upper.startsWith('H_') || upper.startsWith('S_')) return `https://res.cloudinary.com/${cloudId}/image/upload/${transform}/${nameWithout4G8A}.jpg`
+    return `https://res.cloudinary.com/${cloudId}/image/upload/${transform}/4G8A${nameWithout4G8A}.jpg`
 }
 
 async function generatePDF(products: FullProduct[], title: string): Promise<Buffer> {
