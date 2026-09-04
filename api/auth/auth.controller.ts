@@ -2,7 +2,7 @@ import { CookieOptions, Request, Response } from "express";
 import { loggerService } from "../../services/logger.service";
 import { authService } from "./auth.service";
 import { CredentialInBody, LoginCredentials, Miniuser, User, UserInBody } from "../../model/user.model";
-import { error } from "node:console";
+import { userService } from "../user/user.service";
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -15,7 +15,7 @@ const COOKIES_OPTIONS_ACCESS: CookieOptions = {
 }
 const COOKIES_OPTIONS_REFRESH: CookieOptions = {
     ...COOKIES_OPTIONS_ACCESS,
-    maxAge: 1000 * 60 * 60 * 24 * 3 // 3 DAYS
+    maxAge: 1000 * 60 * 60 * 24 * 1825 // 1 YEAR (365 DAYS)
 }
 
 
@@ -65,19 +65,41 @@ export async function logoutCont(req: Request, res: Response) {
 
 export async function getLoginToken(req: Request, res: Response) {
     try {
-        
-        if (!req.cookies?.refreshToken) throw new Error('Please Login')
-            const miniUser: Miniuser = authService.validateRefreshToken(req.cookies.refreshToken)
-        
-        //create Cookies
+        if (!req.cookies?.refreshToken) {
+            return res.status(401).send({ error: 'Please Login' })
+        }
+
+        let miniUser: Miniuser
+        try {
+            miniUser = authService.validateRefreshToken(req.cookies.refreshToken)
+        } catch (tokenErr) {
+            loggerService.warn("Invalid or expired refresh token: ", tokenErr)
+            return res.status(401).send({ error: 'Session expired. Please Login' })
+        }
+
+        // Fetch freshest user details from DB to keep role and price multiplier synced
+        if (miniUser._id) {
+            try {
+                const freshUser = await userService.getById(String(miniUser._id))
+                if (!freshUser) {
+                    loggerService.warn(`User ${miniUser._id} not found during refresh`)
+                    return res.status(401).send({ error: 'User no longer exists' })
+                }
+                miniUser = freshUser
+            } catch (dbErr) {
+                loggerService.warn("Could not re-fetch user from DB during refresh, using token payload", dbErr)
+            }
+        }
+
+        // Create refreshed Cookies (Rolling sliding window renewal)
         const loginToken = authService.getLoginAccessToken(miniUser)
         const refreshToken = authService.getLoginRefreshToken(miniUser)
         res.cookie('loginToken', loginToken, COOKIES_OPTIONS_ACCESS)
         res.cookie('refreshToken', refreshToken, COOKIES_OPTIONS_REFRESH)
-        
-        res.status(200).send("login refreshed")
-    }catch(err){
+
+        res.status(200).send(miniUser)
+    } catch (err) {
         loggerService.error("Couldn't refresh login: ", err)
-        throw err
+        res.status(500).send({ error: "Failed to refresh session" })
     }
 }

@@ -26,12 +26,12 @@ export const authService = {
 
 function getLoginAccessToken(user: Miniuser) {
     const cleanUser = _getCleanMiniUser(user)
-    return jwt.sign(cleanUser, ACCESS_TOKEN_KEY!, { expiresIn: '15m' })
+    return jwt.sign(cleanUser, ACCESS_TOKEN_KEY!, { expiresIn: '30m' })
 }
 
 function getLoginRefreshToken(user: Miniuser) {
     const cleanUser = _getCleanMiniUser(user)
-    return jwt.sign(cleanUser, REFRESH_TOKEN_KEY!, { expiresIn: '7d' })
+    return jwt.sign(cleanUser, REFRESH_TOKEN_KEY!, { expiresIn: '365d' })
 }
 
 function _getCleanMiniUser(user: Miniuser): Miniuser {
