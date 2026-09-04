@@ -50,12 +50,13 @@ function _getImageUrl(imgsUrl: string[] | undefined) {
     const cleanUrls = imgsUrl.map(url => url.replace(/[\r\n\s]+/g, '').replace(/\.[^/.]+$/, ""))
     const cPhoto = cleanUrls.find(url => url.startsWith('C_'))
     const hPhoto = cleanUrls.find(url => url.startsWith('H_'))
-    const numPhoto = cleanUrls.find(url => !url.startsWith('C_') && !url.startsWith('H_'))
+    const numPhoto = cleanUrls.find(url => !url.startsWith('C_') && !url.startsWith('H_') && !url.startsWith('S_'))
+    const sPhoto = cleanUrls.find(url => url.startsWith('S_'))
     
-    const imgName = cPhoto || hPhoto || numPhoto || 'coming-soon'
+    const imgName = cPhoto || hPhoto || numPhoto || sPhoto || 'coming-soon'
     
     if (imgName === 'coming-soon') return `https://res.cloudinary.com/${cloudId}/image/upload/${transform}/coming-soon.jpg`
-    if (imgName.startsWith('C_') || imgName.startsWith('H_')) return `https://res.cloudinary.com/${cloudId}/image/upload/${transform}/${imgName}.jpg`
+    if (imgName.startsWith('C_') || imgName.startsWith('H_') || imgName.startsWith('S_')) return `https://res.cloudinary.com/${cloudId}/image/upload/${transform}/${imgName}.jpg`
     return `https://res.cloudinary.com/${cloudId}/image/upload/${transform}/4G8A${imgName}.jpg`
 }
 
