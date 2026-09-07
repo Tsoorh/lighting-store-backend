@@ -11,11 +11,11 @@ const COOKIES_OPTIONS_ACCESS: CookieOptions = {
     sameSite: isProd ? 'lax' : 'lax', // 'lax' works perfectly now because api.tiranlasry.com and tiranlasry.com share the same parent domain
     secure: isProd,
     path: '/',
-    maxAge: 1000 * 60 * 30 // 30 MINUTES
+    maxAge: 1000 * 60 * 60 * 24 * 1825 // 5 YEAR (365 DAYS)
 }
 const COOKIES_OPTIONS_REFRESH: CookieOptions = {
     ...COOKIES_OPTIONS_ACCESS,
-    maxAge: 1000 * 60 * 60 * 24 * 1825 // 1 YEAR (365 DAYS)
+    maxAge: 1000 * 60 * 60 * 24 * 1825 // 5 YEAR (365 DAYS)
 }
 
 
