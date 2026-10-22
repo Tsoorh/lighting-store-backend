@@ -48,8 +48,9 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      connectSrc: ["'self'", "https://api.cloudinary.com"],
+      connectSrc: ["'self'", "https://api.cloudinary.com", "https://res.cloudinary.com"],
       imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
+      mediaSrc: ["'self'", "https://res.cloudinary.com"],
       scriptSrc: ["'self'", "https://cdn.jsdelivr.net"],
     }
   }
@@ -68,11 +69,13 @@ app.use('/api/', limiter);
 import { authRoutes } from "./api/auth/auth.route";
 import { productRoutes } from "./api/product/products.route";
 import { userRoutes } from "./api/user/user.route";
+import { siteMediaRoutes } from "./api/site-media/site-media.route";
 import { dbService } from "./services/db.service";
 
 app.use('/api/auth',authRoutes)
 app.use('/api/product',productRoutes)
 app.use('/api/user', userRoutes)
+app.use('/api/site-media', siteMediaRoutes)
 
 // Graceful shutdown
 const shutdown = async (signal: string) => {
