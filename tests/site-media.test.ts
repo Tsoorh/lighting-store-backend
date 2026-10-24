@@ -121,6 +121,35 @@ describe('Site Media CMS Unit Tests', () => {
             }
         })
 
+        it('should accept draft when publicId, posterUrl, and other optional fields are explicitly null', () => {
+            const galleryWithNulls = {
+                ...DEFAULT_SITE_MEDIA.gallery,
+                slot_1: { ...DEFAULT_SITE_MEDIA.gallery.slot_1, publicId: null },
+                slot_4: { ...DEFAULT_SITE_MEDIA.gallery.slot_4, publicId: null },
+                slot_5: { ...DEFAULT_SITE_MEDIA.gallery.slot_5, publicId: null },
+                slot_6: { ...DEFAULT_SITE_MEDIA.gallery.slot_6, publicId: null }
+            }
+
+            const input = {
+                baseVersion: 2,
+                draftConfig: {
+                    _id: 'homepage_media',
+                    version: 2,
+                    publicationId: null,
+                    updatedAt: '2026-10-24T14:18:43.163Z',
+                    heroVideo: {
+                        ...DEFAULT_SITE_MEDIA.heroVideo,
+                        publicId: null,
+                        posterUrl: null,
+                        posterPublicId: null
+                    },
+                    gallery: galleryWithNulls
+                }
+            }
+            const res = publishMediaSchema.safeParse(input)
+            expect(res.success).toBe(true)
+        })
+
         it('should default objectPosition to { x: 50, y: 50 } if omitted', () => {
             const slot1WithoutPos: any = { ...DEFAULT_SITE_MEDIA.gallery.slot_1 }
             delete slot1WithoutPos.objectPosition

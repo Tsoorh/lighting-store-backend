@@ -14,7 +14,7 @@ export interface GallerySlotItem {
     targetRatio: number // 2.113 for wide, 1.000 for square
     recommendedResolution: string
     url: string
-    publicId?: string
+    publicId?: string | null
     objectPosition: ObjectPosition
     alt: { en: string; he: string }
     updatedAt?: string
@@ -27,9 +27,9 @@ export interface GallerySlotItem {
 
 export interface HeroVideoConfig {
     url: string
-    publicId?: string
-    posterUrl?: string
-    posterPublicId?: string
+    publicId?: string | null
+    posterUrl?: string | null
+    posterPublicId?: string | null
     objectPosition: ObjectPosition
     updatedAt?: string
     updatedBy?: {
@@ -57,16 +57,16 @@ export interface SiteMediaLogEntry {
     slotName: { en: string; he: string }
     previousAsset: {
         url: string
-        publicId?: string
-        posterUrl?: string
-        posterPublicId?: string
+        publicId?: string | null
+        posterUrl?: string | null
+        posterPublicId?: string | null
         objectPosition?: ObjectPosition
     }
     newAsset: {
         url: string
-        publicId?: string
-        posterUrl?: string
-        posterPublicId?: string
+        publicId?: string | null
+        posterUrl?: string | null
+        posterPublicId?: string | null
         objectPosition?: ObjectPosition
     }
     restoredFromLogId?: string
