@@ -46,6 +46,7 @@ async function publishMedia(req: Request, res: Response) {
     try {
         const validation = publishMediaSchema.safeParse(req.body)
         if (!validation.success) {
+            loggerService.warn('publishMedia payload failed validation: ' + JSON.stringify(validation.error.flatten()))
             return res.status(400).json({ 
                 error: 'Invalid publish media payload', 
                 details: validation.error.flatten() 

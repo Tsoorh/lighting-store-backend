@@ -73,7 +73,7 @@ async function generateUploadSignature(
     const randomSalt = crypto.randomBytes(3).toString('hex')
     const subFolder = resourceType === 'video' ? 'videos' : 'images'
     const folder = `tiran_lasry/homepage/${subFolder}`
-    const publicId = `${folder}/${slotId}_${timestamp}_${randomSalt}`
+    const publicId = `${slotId}_${timestamp}_${randomSalt}`
 
     const paramsToSign = {
         folder,
@@ -102,10 +102,6 @@ async function publishMedia(
     const logCollection = await dbService.getCollection<SiteMediaLogEntry>(LOG_COLLECTION)
 
     let current = await collection.findOne({ _id: 'homepage_media' })
-    if (!current) {
-        await collection.insertOne({ ...DEFAULT_SITE_MEDIA, updatedAt: new Date().toISOString() } as any)
-        current = DEFAULT_SITE_MEDIA
-    }
 
     const publicationId = `pub_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`
     const now = new Date().toISOString()
@@ -118,14 +114,16 @@ async function publishMedia(
         role: user.role || 'admin'
     }
 
-    // 1. Detect changes in Hero Video
-    const currentVid = current.heroVideo
-    const draftVid = draftConfig.heroVideo
+    const currentVid = current?.heroVideo || DEFAULT_SITE_MEDIA.heroVideo
+    const draftVid = draftConfig.heroVideo || DEFAULT_SITE_MEDIA.heroVideo
+    const currentVidPos = currentVid.objectPosition || { x: 50, y: 50 }
+    const draftVidPos = draftVid.objectPosition || { x: 50, y: 50 }
+
     const isVideoChanged = 
         currentVid.url !== draftVid.url ||
         currentVid.posterUrl !== draftVid.posterUrl ||
-        currentVid.objectPosition.x !== draftVid.objectPosition.x ||
-        currentVid.objectPosition.y !== draftVid.objectPosition.y
+        currentVidPos.x !== draftVidPos.x ||
+        currentVidPos.y !== draftVidPos.y
 
     if (isVideoChanged) {
         logEntries.push({
@@ -139,14 +137,14 @@ async function publishMedia(
                 publicId: currentVid.publicId,
                 posterUrl: currentVid.posterUrl,
                 posterPublicId: currentVid.posterPublicId,
-                objectPosition: currentVid.objectPosition
+                objectPosition: currentVidPos
             },
             newAsset: {
                 url: draftVid.url,
                 publicId: draftVid.publicId,
                 posterUrl: draftVid.posterUrl,
                 posterPublicId: draftVid.posterPublicId,
-                objectPosition: draftVid.objectPosition
+                objectPosition: draftVidPos
             },
             replacedAt: now,
             replacedBy: userSummary
@@ -154,13 +152,17 @@ async function publishMedia(
     }
 
     // 2. Detect changes in the 5 Gallery Slots
+    const updatedGallery: SiteMediaConfig['gallery'] = { ...(current?.gallery || DEFAULT_SITE_MEDIA.gallery) }
     for (const slotId of CANONICAL_SLOT_IDS) {
-        const curSlot = current.gallery[slotId]
-        const dftSlot = draftConfig.gallery[slotId]
+        const curSlot = current?.gallery?.[slotId] || DEFAULT_SITE_MEDIA.gallery[slotId]
+        const dftSlot = draftConfig.gallery?.[slotId] || DEFAULT_SITE_MEDIA.gallery[slotId]
+        const curPos = curSlot.objectPosition || { x: 50, y: 50 }
+        const dftPos = dftSlot.objectPosition || { x: 50, y: 50 }
+
         const isSlotChanged = 
             curSlot.url !== dftSlot.url ||
-            curSlot.objectPosition.x !== dftSlot.objectPosition.x ||
-            curSlot.objectPosition.y !== dftSlot.objectPosition.y
+            curPos.x !== dftPos.x ||
+            curPos.y !== dftPos.y
 
         if (isSlotChanged) {
             logEntries.push({
@@ -168,44 +170,45 @@ async function publishMedia(
                 actionType: 'replacement',
                 mediaType: 'gallery',
                 slotId,
-                slotName: curSlot.title,
+                slotName: curSlot.title || DEFAULT_SITE_MEDIA.gallery[slotId].title,
                 previousAsset: {
                     url: curSlot.url,
                     publicId: curSlot.publicId,
-                    objectPosition: curSlot.objectPosition
+                    objectPosition: curPos
                 },
                 newAsset: {
                     url: dftSlot.url,
                     publicId: dftSlot.publicId,
-                    objectPosition: dftSlot.objectPosition
+                    objectPosition: dftPos
                 },
                 replacedAt: now,
                 replacedBy: userSummary
             })
         }
-    }
 
-    const newVersion = baseVersion + 1
-
-    const updatedGallery: SiteMediaConfig['gallery'] = { ...current.gallery }
-    for (const slotId of CANONICAL_SLOT_IDS) {
-        const dft = draftConfig.gallery[slotId]
         updatedGallery[slotId] = {
-            ...current.gallery[slotId],
-            url: dft.url,
-            publicId: dft.publicId,
-            objectPosition: dft.objectPosition,
+            ...curSlot,
+            url: dftSlot.url,
+            publicId: dftSlot.publicId,
+            objectPosition: dftPos,
+            title: (dftSlot.title?.en && dftSlot.title?.he) ? { en: dftSlot.title.en, he: dftSlot.title.he } : curSlot.title,
+            alt: (dftSlot.alt?.en && dftSlot.alt?.he) ? { en: dftSlot.alt.en, he: dftSlot.alt.he } : curSlot.alt,
             updatedAt: now,
             updatedBy: userSummary
         }
     }
+
+    const currentVersion = current && typeof current.version === 'number' ? current.version : 1
+    const newVersion = current ? currentVersion + 1 : 1
 
     const configToSave: SiteMediaConfig = {
         _id: 'homepage_media',
         version: newVersion,
         publicationId,
         heroVideo: {
+            ...currentVid,
             ...draftVid,
+            objectPosition: draftVidPos,
             updatedAt: now,
             updatedBy: userSummary
         },
@@ -213,17 +216,33 @@ async function publishMedia(
         updatedAt: now
     }
 
-    // Truly atomic conditional update: requires version === baseVersion
-    const updateResult = await collection.updateOne(
-        { _id: 'homepage_media', version: baseVersion },
-        { $set: configToSave as any }
-    )
+    if (!current) {
+        await collection.insertOne(configToSave as any)
+    } else {
+        if (baseVersion !== currentVersion && baseVersion !== 0 && typeof current.version === 'number') {
+            throw new VersionConflictError(`Conflict: published version is ${currentVersion}, but your draft was based on version ${baseVersion}.`)
+        }
 
-    if (updateResult.matchedCount === 0) {
-        const latestDoc = await collection.findOne({ _id: 'homepage_media' })
-        const latestVersion = latestDoc?.version ?? 0
-        loggerService.warn(`Version conflict during site media publish. Expected: ${baseVersion}, Found: ${latestVersion}`)
-        throw new VersionConflictError(`Conflict: published version is ${latestVersion}, but your draft was based on version ${baseVersion}.`)
+        const { _id, ...fieldsToUpdate } = configToSave
+
+        const updateResult = await collection.updateOne(
+            { 
+                _id: 'homepage_media',
+                $or: [
+                    { version: baseVersion },
+                    { version: currentVersion },
+                    { version: { $exists: false } }
+                ]
+            },
+            { $set: fieldsToUpdate as any }
+        )
+
+        if (updateResult.matchedCount === 0) {
+            const latestDoc = await collection.findOne({ _id: 'homepage_media' })
+            const latestVersion = latestDoc?.version ?? 0
+            loggerService.warn(`Version conflict during site media publish. Expected: ${baseVersion}, Found: ${latestVersion}`)
+            throw new VersionConflictError(`Conflict: published version is ${latestVersion}, but your draft was based on version ${baseVersion}.`)
+        }
     }
 
     // Commit audit log entries

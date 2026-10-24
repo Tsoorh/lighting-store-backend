@@ -59,6 +59,89 @@ describe('Site Media CMS Unit Tests', () => {
             expect(res.success).toBe(true)
         })
 
+        it('should accept a valid draft configuration containing _id, version, publicationId, and updatedAt', () => {
+            const input = {
+                baseVersion: 1,
+                draftConfig: {
+                    _id: 'homepage_media',
+                    version: 1,
+                    publicationId: 'pub_test_123',
+                    updatedAt: new Date().toISOString(),
+                    heroVideo: DEFAULT_SITE_MEDIA.heroVideo,
+                    gallery: DEFAULT_SITE_MEDIA.gallery
+                }
+            }
+            const res = publishMediaSchema.safeParse(input)
+            expect(res.success).toBe(true)
+        })
+
+        it('should accept draft when photos 3-6 have been updated with new URLs and object positions', () => {
+            const updatedGallery = {
+                ...DEFAULT_SITE_MEDIA.gallery,
+                slot_3: {
+                    ...DEFAULT_SITE_MEDIA.gallery.slot_3,
+                    url: 'https://res.cloudinary.com/dhixlriwm/image/upload/v1/slot_3_new.jpg',
+                    publicId: 'slot_3_new',
+                    objectPosition: { x: 30, y: 70 }
+                },
+                slot_4: {
+                    ...DEFAULT_SITE_MEDIA.gallery.slot_4,
+                    url: 'https://res.cloudinary.com/dhixlriwm/image/upload/v1/slot_4_new.jpg',
+                    publicId: 'slot_4_new',
+                    objectPosition: { x: 50, y: 80 }
+                },
+                slot_5: {
+                    ...DEFAULT_SITE_MEDIA.gallery.slot_5,
+                    url: 'https://res.cloudinary.com/dhixlriwm/image/upload/v1/slot_5_new.jpg',
+                    publicId: 'slot_5_new',
+                    objectPosition: { x: 60, y: 40 }
+                },
+                slot_6: {
+                    ...DEFAULT_SITE_MEDIA.gallery.slot_6,
+                    url: 'https://res.cloudinary.com/dhixlriwm/image/upload/v1/slot_6_new.jpg',
+                    publicId: 'slot_6_new',
+                    objectPosition: { x: 50, y: 50 }
+                }
+            }
+
+            const input = {
+                baseVersion: 1,
+                draftConfig: {
+                    _id: 'homepage_media',
+                    version: 1,
+                    heroVideo: DEFAULT_SITE_MEDIA.heroVideo,
+                    gallery: updatedGallery
+                }
+            }
+            const res = publishMediaSchema.safeParse(input)
+            expect(res.success).toBe(true)
+            if (res.success) {
+                expect(res.data.draftConfig.gallery.slot_3.objectPosition?.x).toBe(30)
+                expect(res.data.draftConfig.gallery.slot_4.objectPosition?.y).toBe(80)
+            }
+        })
+
+        it('should default objectPosition to { x: 50, y: 50 } if omitted', () => {
+            const slot1WithoutPos: any = { ...DEFAULT_SITE_MEDIA.gallery.slot_1 }
+            delete slot1WithoutPos.objectPosition
+
+            const input = {
+                baseVersion: 1,
+                draftConfig: {
+                    heroVideo: DEFAULT_SITE_MEDIA.heroVideo,
+                    gallery: {
+                        ...DEFAULT_SITE_MEDIA.gallery,
+                        slot_1: slot1WithoutPos
+                    }
+                }
+            }
+            const res = publishMediaSchema.safeParse(input)
+            expect(res.success).toBe(true)
+            if (res.success) {
+                expect(res.data.draftConfig.gallery.slot_1.objectPosition).toEqual({ x: 50, y: 50 })
+            }
+        })
+
         it('should reject when a canonical slot is missing', () => {
             const galleryWithoutSlot6: any = { ...DEFAULT_SITE_MEDIA.gallery }
             delete galleryWithoutSlot6.slot_6
@@ -119,7 +202,8 @@ describe('Site Media CMS Unit Tests', () => {
             expect(sig1.publicId).toBeDefined()
             expect(sig2.publicId).toBeDefined()
             expect(sig1.publicId).not.toEqual(sig2.publicId)
-            expect(sig1.publicId).toContain('tiran_lasry/homepage/images/slot_1_')
+            expect(sig1.folder).toEqual('tiran_lasry/homepage/images')
+            expect(sig1.publicId).toContain('slot_1_')
         })
 
         it('should route video uploads to the videos subfolder', async () => {
@@ -129,7 +213,7 @@ describe('Site Media CMS Unit Tests', () => {
 
             const sig = await siteMediaService.generateUploadSignature('hero_video', 'video')
             expect(sig.folder).toEqual('tiran_lasry/homepage/videos')
-            expect(sig.publicId).toContain('tiran_lasry/homepage/videos/hero_video_')
+            expect(sig.publicId).toContain('hero_video_')
         })
     })
 
