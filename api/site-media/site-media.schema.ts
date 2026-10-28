@@ -26,9 +26,26 @@ const gallerySlotSchema = z.object({
     updatedBy: z.any().nullable().optional()
 }).passthrough()
 
+const fullWidthBannerSchema = z.object({
+    enabled: z.boolean().default(false),
+    position: z.number().int().min(1).max(5).default(2),
+    url: z.string().min(1),
+    publicId: z.string().nullable().optional(),
+    alt: z.object({
+        en: z.string().nullable().optional(),
+        he: z.string().nullable().optional()
+    }).nullable().optional(),
+    objectPosition: objectPositionSchema.nullable().optional().default({ x: 50, y: 50 }),
+    linkUrl: z.string().nullable().optional(),
+    recommendedResolution: z.string().nullable().optional(),
+    targetRatio: z.number().nullable().optional(),
+    updatedAt: z.string().nullable().optional(),
+    updatedBy: z.any().nullable().optional()
+}).passthrough()
+
 export const uploadSignatureSchema = z.object({
-    target: z.enum(['hero_video', 'gallery']),
-    slotId: z.enum(['hero_video', 'slot_1', 'slot_3', 'slot_4', 'slot_5', 'slot_6']),
+    target: z.enum(['hero_video', 'gallery', 'full_width_banner']),
+    slotId: z.enum(['hero_video', 'slot_1', 'slot_3', 'slot_4', 'slot_5', 'slot_6', 'full_width_banner']),
     resourceType: z.enum(['image', 'video'])
 })
 
@@ -48,6 +65,7 @@ export const publishMediaSchema = z.object({
             updatedAt: z.string().nullable().optional(),
             updatedBy: z.any().nullable().optional()
         }).passthrough(),
+        fullWidthBanner: fullWidthBannerSchema.nullable().optional(),
         gallery: z.object({
             slot_1: gallerySlotSchema,
             slot_3: gallerySlotSchema,

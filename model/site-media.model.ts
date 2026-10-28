@@ -1,9 +1,27 @@
 export type CanonicalSlotId = 'slot_1' | 'slot_3' | 'slot_4' | 'slot_5' | 'slot_6'
-export type MediaTarget = 'hero_video' | 'gallery'
+export type MediaTarget = 'hero_video' | 'gallery' | 'full_width_banner'
 
 export interface ObjectPosition {
     x: number // 0 to 100, default 50
     y: number // 0 to 100, default 50
+}
+
+export interface FullWidthBannerConfig {
+    enabled: boolean
+    position: number // 1 to 5 (placement slot between sections)
+    url: string
+    publicId?: string | null
+    alt: { en: string; he: string }
+    objectPosition: ObjectPosition
+    linkUrl?: string | null
+    recommendedResolution?: string
+    targetRatio?: number
+    updatedAt?: string
+    updatedBy?: {
+        _id: string
+        fullname: string
+        username: string
+    }
 }
 
 export interface GallerySlotItem {
@@ -45,6 +63,7 @@ export interface SiteMediaConfig {
     publicationId?: string
     heroVideo: HeroVideoConfig
     gallery: Record<CanonicalSlotId, GallerySlotItem>
+    fullWidthBanner?: FullWidthBannerConfig
     updatedAt: string
 }
 
@@ -53,7 +72,7 @@ export interface SiteMediaLogEntry {
     publicationId: string // Shared across all slots published together
     actionType: 'replacement' | 'restoration'
     mediaType: MediaTarget
-    slotId: CanonicalSlotId | 'hero_video'
+    slotId: CanonicalSlotId | 'hero_video' | 'full_width_banner'
     slotName: { en: string; he: string }
     previousAsset: {
         url: string
@@ -87,6 +106,18 @@ export const CANONICAL_SLOT_IDS: CanonicalSlotId[] = [
     'slot_6'
 ]
 
+export const DEFAULT_FULL_WIDTH_BANNER: FullWidthBannerConfig = {
+    enabled: false,
+    position: 2,
+    url: '/images/Figma/Living_room.png',
+    publicId: null,
+    alt: { en: 'Handcrafted architectural lighting', he: 'גופי תאורה אדריכליים בעבודת יד' },
+    objectPosition: { x: 50, y: 50 },
+    linkUrl: '',
+    recommendedResolution: '1920 x 800 px',
+    targetRatio: 2.4
+}
+
 export const DEFAULT_SITE_MEDIA: SiteMediaConfig = {
     _id: 'homepage_media',
     version: 1,
@@ -95,6 +126,7 @@ export const DEFAULT_SITE_MEDIA: SiteMediaConfig = {
         posterUrl: '',
         objectPosition: { x: 50, y: 50 }
     },
+    fullWidthBanner: DEFAULT_FULL_WIDTH_BANNER,
     gallery: {
         slot_1: {
             id: 'slot_1',

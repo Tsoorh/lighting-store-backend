@@ -25,6 +25,16 @@ describe('Site Media CMS Unit Tests', () => {
             expect(res.success).toBe(true)
         })
 
+        it('should accept valid upload signature input for full_width_banner', () => {
+            const input = {
+                target: 'full_width_banner',
+                slotId: 'full_width_banner',
+                resourceType: 'image'
+            }
+            const res = uploadSignatureSchema.safeParse(input)
+            expect(res.success).toBe(true)
+        })
+
         it('should reject invalid slot ID', () => {
             const input = {
                 target: 'gallery',
@@ -148,6 +158,49 @@ describe('Site Media CMS Unit Tests', () => {
             }
             const res = publishMediaSchema.safeParse(input)
             expect(res.success).toBe(true)
+        })
+
+        it('should accept draft when fullWidthBanner is enabled and reordered to position 3', () => {
+            const input = {
+                baseVersion: 1,
+                draftConfig: {
+                    heroVideo: DEFAULT_SITE_MEDIA.heroVideo,
+                    gallery: DEFAULT_SITE_MEDIA.gallery,
+                    fullWidthBanner: {
+                        enabled: true,
+                        position: 3,
+                        url: 'https://res.cloudinary.com/dhixlriwm/image/upload/v1/full_width_banner.jpg',
+                        publicId: 'full_width_banner_123',
+                        objectPosition: { x: 45, y: 55 },
+                        linkUrl: '/product/category/ceiling',
+                        alt: { en: 'New Section Banner', he: 'באנר מקטע חדש' }
+                    }
+                }
+            }
+            const res = publishMediaSchema.safeParse(input)
+            expect(res.success).toBe(true)
+            if (res.success) {
+                expect(res.data.draftConfig.fullWidthBanner?.enabled).toBe(true)
+                expect(res.data.draftConfig.fullWidthBanner?.position).toBe(3)
+                expect(res.data.draftConfig.fullWidthBanner?.linkUrl).toBe('/product/category/ceiling')
+            }
+        })
+
+        it('should reject fullWidthBanner when position is out of range (< 1 or > 5)', () => {
+            const input = {
+                baseVersion: 1,
+                draftConfig: {
+                    heroVideo: DEFAULT_SITE_MEDIA.heroVideo,
+                    gallery: DEFAULT_SITE_MEDIA.gallery,
+                    fullWidthBanner: {
+                        enabled: true,
+                        position: 99, // invalid position
+                        url: 'https://res.cloudinary.com/dhixlriwm/image/upload/v1/full_width_banner.jpg'
+                    }
+                }
+            }
+            const res = publishMediaSchema.safeParse(input)
+            expect(res.success).toBe(false)
         })
 
         it('should default objectPosition to { x: 50, y: 50 } if omitted', () => {

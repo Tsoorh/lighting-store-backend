@@ -6,6 +6,8 @@ import {
     CANONICAL_SLOT_IDS, 
     CanonicalSlotId, 
     DEFAULT_SITE_MEDIA, 
+    DEFAULT_FULL_WIDTH_BANNER,
+    FullWidthBannerConfig,
     SiteMediaConfig, 
     SiteMediaLogEntry 
 } from '../../model/site-media.model'
@@ -50,6 +52,9 @@ async function getSiteMedia(): Promise<SiteMediaConfig> {
             await collection.insertOne(initialDoc as any)
             config = initialDoc
         }
+        if (config && !config.fullWidthBanner) {
+            config.fullWidthBanner = DEFAULT_FULL_WIDTH_BANNER
+        }
         return config
     } catch (err) {
         loggerService.error('Failed to get site media config', err)
@@ -58,7 +63,7 @@ async function getSiteMedia(): Promise<SiteMediaConfig> {
 }
 
 async function generateUploadSignature(
-    slotId: CanonicalSlotId | 'hero_video', 
+    slotId: CanonicalSlotId | 'hero_video' | 'full_width_banner', 
     resourceType: 'image' | 'video'
 ) {
     const apiSecret = process.env.CLOUDINARY_API_SECRET
@@ -198,6 +203,57 @@ async function publishMedia(
         }
     }
 
+    // 3. Detect changes in Full-Width Banner
+    const currentBanner = current?.fullWidthBanner || DEFAULT_FULL_WIDTH_BANNER
+    const draftBanner = draftConfig.fullWidthBanner || DEFAULT_FULL_WIDTH_BANNER
+    const currentBannerPos = currentBanner.objectPosition || { x: 50, y: 50 }
+    const draftBannerPos = draftBanner.objectPosition || { x: 50, y: 50 }
+
+    const isBannerChanged = 
+        currentBanner.enabled !== draftBanner.enabled ||
+        currentBanner.position !== draftBanner.position ||
+        currentBanner.url !== draftBanner.url ||
+        currentBanner.linkUrl !== draftBanner.linkUrl ||
+        currentBannerPos.x !== draftBannerPos.x ||
+        currentBannerPos.y !== draftBannerPos.y
+
+    if (isBannerChanged) {
+        logEntries.push({
+            publicationId,
+            actionType: 'replacement',
+            mediaType: 'full_width_banner',
+            slotId: 'full_width_banner',
+            slotName: { en: 'Full-Width Banner', he: 'באנר תמונה ברוחב מלא' },
+            previousAsset: {
+                url: currentBanner.url,
+                publicId: currentBanner.publicId,
+                objectPosition: currentBannerPos
+            },
+            newAsset: {
+                url: draftBanner.url,
+                publicId: draftBanner.publicId,
+                objectPosition: draftBannerPos
+            },
+            replacedAt: now,
+            replacedBy: userSummary
+        })
+    }
+
+    const updatedBanner: FullWidthBannerConfig = {
+        ...currentBanner,
+        enabled: typeof draftBanner.enabled === 'boolean' ? draftBanner.enabled : currentBanner.enabled,
+        position: typeof draftBanner.position === 'number' ? draftBanner.position : currentBanner.position,
+        url: draftBanner.url || currentBanner.url,
+        publicId: draftBanner.publicId !== undefined ? draftBanner.publicId : currentBanner.publicId,
+        objectPosition: draftBannerPos,
+        linkUrl: draftBanner.linkUrl !== undefined ? (draftBanner.linkUrl || '') : currentBanner.linkUrl,
+        alt: (draftBanner.alt?.en && draftBanner.alt?.he) ? { en: draftBanner.alt.en, he: draftBanner.alt.he } : currentBanner.alt,
+        recommendedResolution: draftBanner.recommendedResolution || currentBanner.recommendedResolution,
+        targetRatio: draftBanner.targetRatio || currentBanner.targetRatio,
+        updatedAt: now,
+        updatedBy: userSummary
+    }
+
     const currentVersion = current && typeof current.version === 'number' ? current.version : 1
     const newVersion = current ? currentVersion + 1 : 1
 
@@ -212,6 +268,7 @@ async function publishMedia(
             updatedAt: now,
             updatedBy: userSummary
         },
+        fullWidthBanner: updatedBanner,
         gallery: updatedGallery,
         updatedAt: now
     }
