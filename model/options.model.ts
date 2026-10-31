@@ -9,7 +9,7 @@ export interface SocketOptions {
 
 export const DEFAULT_SOCKET_OPTIONS: SocketOptions = {
     _id: 'socket_options',
-    screwTypes: ['E27', 'G9', 'GU10', 'LED (Integrated)', 'Mixed: GU10 + E27', 'Mixed: G9 + E27'],
+    screwTypes: ['E27', 'G9', 'GU10', 'Linestra Bulb', 'LED (Integrated)', 'Mixed: GU10 + E27', 'Mixed: G9 + E27'],
     lightTypes: [
         'LED - Max 5W',
         'LED - Max 7W',
