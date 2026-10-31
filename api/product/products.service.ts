@@ -98,7 +98,7 @@ function _getCriteria(filterBy: FilterBy, isAdmin: boolean = false) {
     if (filterBy.price) {
         criteria.price = { $elemMatch: { amount: { $lte: filterBy.price } } }
     }
-    if (filterBy.category) {
+    if (filterBy.category && filterBy.category.toLowerCase() !== 'all') {
         const regex= { $regex: filterBy.category, $options: 'i' }
         criteria.$or = [
             {"category.en" : regex},
