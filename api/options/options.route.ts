@@ -10,5 +10,8 @@ router.delete('/socket/:category/:value', requireAdmin, optionsController.remove
 router.delete('/socket/:category', requireAdmin, optionsController.removeSocketOption);
 router.put('/socket', requireAdmin, optionsController.updateSocketOptions);
 
+router.get('/site', optionsController.getSiteOptions);
+router.put('/site', requireAdmin, optionsController.updateSiteOptions);
+
 export const optionsRoutes = router;
 

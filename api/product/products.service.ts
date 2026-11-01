@@ -78,6 +78,7 @@ function _applyPricingLogic<T extends Product>(product: T): T {
 
 function _getCriteria(filterBy: FilterBy, isAdmin: boolean = false) {
     const criteria: Filter<Product> = {}
+    const andConditions: any[] = []
 
     if (filterBy.isActive === true) {
         criteria.isActive = { $ne: false }
@@ -86,24 +87,51 @@ function _getCriteria(filterBy: FilterBy, isAdmin: boolean = false) {
     } else if (!isAdmin) {
         criteria.isActive = { $ne: false }
     }
+
+    if (filterBy.isNew !== undefined) {
+        criteria.isNew = filterBy.isNew
+    }
+
     if (filterBy.txt) {
         const regex = { $regex: filterBy.txt, $options: 'i' }
-        criteria.$or = [
-            { "name.en": regex },
-            { "name.he": regex },
-            { "description.en": regex },
-            { "description.he": regex }
-        ]
+        andConditions.push({
+            $or: [
+                { "name.en": regex },
+                { "name.he": regex },
+                { "description.en": regex },
+                { "description.he": regex }
+            ]
+        })
     }
+
     if (filterBy.price) {
         criteria.price = { $elemMatch: { amount: { $lte: filterBy.price } } }
     }
+
     if (filterBy.category && filterBy.category.toLowerCase() !== 'all') {
-        const regex= { $regex: filterBy.category, $options: 'i' }
-        criteria.$or = [
-            {"category.en" : regex},
-            {"category.he" : regex}
-        ]
+        const cat = filterBy.category.toLowerCase()
+        if (cat === 'new-collection' || cat === 'new collection' || cat === 'new') {
+            andConditions.push({
+                $or: [
+                    { isNew: true },
+                    { "category.en": { $regex: 'new', $options: 'i' } },
+                    { "category.he": { $regex: 'חדש', $options: 'i' } }
+                ]
+            })
+        } else {
+            const regex = { $regex: filterBy.category, $options: 'i' }
+            andConditions.push({
+                $or: [
+                    { "category.en": regex },
+                    { "category.he": regex }
+                ]
+            })
+        }
     }
+
+    if (andConditions.length > 0) {
+        criteria.$and = andConditions
+    }
+
     return criteria
 }

@@ -16,6 +16,11 @@ export const socketOptionsUpdateSchema = z.object({
     lightTypes: z.array(z.string().trim().min(1, 'Light type cannot be empty')).min(1, 'At least one light type is required')
 });
 
+export const siteOptionsUpdateSchema = z.object({
+    isNewCollectionActive: z.boolean()
+});
+
 export type SocketOptionAddInput = z.infer<typeof socketOptionAddSchema>;
 export type SocketOptionsUpdateInput = z.infer<typeof socketOptionsUpdateSchema>;
+export type SiteOptionsUpdateInput = z.infer<typeof siteOptionsUpdateSchema>;
 

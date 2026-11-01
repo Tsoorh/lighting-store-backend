@@ -12,12 +12,13 @@ import { Miniuser } from "../../model/user.model";
 
 
 export async function getProducts(req: Request, res: Response) {
-    const { txt, price, category } = req.query
+    const { txt, price, category, isNew } = req.query
 
     const filterBy: FilterBy = {
         txt: (txt as string) || '',
         price: (price !== undefined && !isNaN(+price)) ? +price : undefined,
-        category: (category as string) || ''
+        category: (category as string) || '',
+        isNew: isNew === 'true' ? true : isNew === 'false' ? false : undefined
     }
     try {
         const products = await productService.query(filterBy)

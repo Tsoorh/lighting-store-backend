@@ -22,3 +22,14 @@ export const DEFAULT_SOCKET_OPTIONS: SocketOptions = {
     ]
 };
 
+export interface SiteOptions {
+    _id: string;
+    isNewCollectionActive: boolean;
+    updatedAt?: string;
+}
+
+export const DEFAULT_SITE_OPTIONS: SiteOptions = {
+    _id: 'site_options',
+    isNewCollectionActive: true
+};
+

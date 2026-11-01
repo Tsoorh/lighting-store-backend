@@ -3,17 +3,22 @@ import { loggerService } from '../../services/logger.service';
 import { 
     SocketOptions, 
     DEFAULT_SOCKET_OPTIONS, 
-    SocketOptionCategory 
+    SocketOptionCategory,
+    SiteOptions,
+    DEFAULT_SITE_OPTIONS
 } from '../../model/options.model';
 
 const COLLECTION = 'options';
 const SOCKET_OPTIONS_ID = 'socket_options';
+const SITE_OPTIONS_ID = 'site_options';
 
 export const optionsService = {
     getSocketOptions,
     addSocketOption,
     removeSocketOption,
-    updateSocketOptions
+    updateSocketOptions,
+    getSiteOptions,
+    updateSiteOptions
 };
 
 async function getSocketOptions(): Promise<SocketOptions> {
@@ -137,6 +142,57 @@ async function updateSocketOptions(newOptions: { screwTypes: string[]; lightType
         return doc;
     } catch (err) {
         loggerService.error('Failed to update socket options config', err);
+        throw err;
+    }
+}
+
+async function getSiteOptions(): Promise<SiteOptions> {
+    try {
+        const collection = await dbService.getCollection<SiteOptions>(COLLECTION);
+        let options = await collection.findOne({ _id: SITE_OPTIONS_ID } as any);
+
+        if (!options) {
+            const initialDoc: SiteOptions = {
+                ...DEFAULT_SITE_OPTIONS,
+                updatedAt: new Date().toISOString()
+            };
+            await collection.insertOne(initialDoc as any);
+            options = initialDoc;
+        }
+
+        return {
+            _id: SITE_OPTIONS_ID,
+            isNewCollectionActive: options.isNewCollectionActive !== false,
+            updatedAt: options.updatedAt
+        };
+    } catch (err) {
+        loggerService.error('Failed to get site options config', err);
+        return {
+            ...DEFAULT_SITE_OPTIONS,
+            updatedAt: new Date().toISOString()
+        };
+    }
+}
+
+async function updateSiteOptions(updateData: { isNewCollectionActive: boolean }): Promise<SiteOptions> {
+    try {
+        const collection = await dbService.getCollection<SiteOptions>(COLLECTION);
+        const updatedAt = new Date().toISOString();
+        const doc: SiteOptions = {
+            _id: SITE_OPTIONS_ID,
+            isNewCollectionActive: updateData.isNewCollectionActive,
+            updatedAt
+        };
+
+        await collection.updateOne(
+            { _id: SITE_OPTIONS_ID } as any,
+            { $set: doc as any },
+            { upsert: true }
+        );
+
+        return doc;
+    } catch (err) {
+        loggerService.error('Failed to update site options config', err);
         throw err;
     }
 }

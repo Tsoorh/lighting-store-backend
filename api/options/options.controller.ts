@@ -3,7 +3,8 @@ import { optionsService } from './options.service';
 import { 
     socketOptionCategorySchema, 
     socketOptionItemSchema, 
-    socketOptionsUpdateSchema 
+    socketOptionsUpdateSchema,
+    siteOptionsUpdateSchema
 } from './options.schema';
 import { loggerService } from '../../services/logger.service';
 
@@ -11,7 +12,9 @@ export const optionsController = {
     getSocketOptions,
     addSocketOption,
     removeSocketOption,
-    updateSocketOptions
+    updateSocketOptions,
+    getSiteOptions,
+    updateSiteOptions
 };
 
 async function getSocketOptions(req: Request, res: Response) {
@@ -86,6 +89,34 @@ async function updateSocketOptions(req: Request, res: Response) {
     } catch (err: any) {
         loggerService.error('optionsController.updateSocketOptions failed', err);
         res.status(500).json({ error: err.message || 'Failed to update socket options' });
+    }
+}
+
+async function getSiteOptions(req: Request, res: Response) {
+    try {
+        const options = await optionsService.getSiteOptions();
+        res.json(options);
+    } catch (err: any) {
+        loggerService.error('optionsController.getSiteOptions failed', err);
+        res.status(500).json({ error: 'Failed to retrieve site options' });
+    }
+}
+
+async function updateSiteOptions(req: Request, res: Response) {
+    try {
+        const validation = siteOptionsUpdateSchema.safeParse(req.body);
+        if (!validation.success) {
+            return res.status(400).json({ 
+                error: 'Invalid site options payload', 
+                details: validation.error.flatten() 
+            });
+        }
+
+        const updated = await optionsService.updateSiteOptions(validation.data);
+        res.json(updated);
+    } catch (err: any) {
+        loggerService.error('optionsController.updateSiteOptions failed', err);
+        res.status(500).json({ error: err.message || 'Failed to update site options' });
     }
 }
 
