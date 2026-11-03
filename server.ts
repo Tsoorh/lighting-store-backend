@@ -10,6 +10,8 @@ import rateLimit from "express-rate-limit";
 import { loggerService } from "./services/logger.service";
 import { setupAsyncLocalStorage } from "./middlewares/setupAls.middleware";
 import path from 'path';
+import fs from 'fs';
+import { injectProductOpenGraph } from "./services/og-meta.service";
 
 
 const app = express();
@@ -68,6 +70,7 @@ app.use('/api/', limiter);
 //api routing
 import { authRoutes } from "./api/auth/auth.route";
 import { productRoutes } from "./api/product/products.route";
+import { productService } from "./api/product/products.service";
 import { userRoutes } from "./api/user/user.route";
 import { siteMediaRoutes } from "./api/site-media/site-media.route";
 import { optionsRoutes } from "./api/options/options.route";
@@ -91,6 +94,32 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 
 
 
+
+// Dynamic Open Graph handler for product link preview
+app.get('/product/:productId', async (req, res) => {
+    const indexPath = path.resolve('public/index.html');
+    if (!fs.existsSync(indexPath)) {
+        return res.status(404).send('Not Found');
+    }
+
+    try {
+        const { productId } = req.params;
+        const product = await productService.getById(productId);
+        if (!product) {
+            return res.sendFile(indexPath);
+        }
+
+        const rawHtml = await fs.promises.readFile(indexPath, 'utf-8');
+        const pageUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+        const enrichedHtml = injectProductOpenGraph(rawHtml, product, pageUrl);
+
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.send(enrichedHtml);
+    } catch (err) {
+        loggerService.error('Error injecting product OG tags:', err);
+        return res.sendFile(indexPath);
+    }
+});
 
 // * For SPA (Single Page Application) - catch all routes and send to the index.html
 // Ensure we don't hijack API requests that should have been 404s
