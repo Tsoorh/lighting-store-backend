@@ -2,6 +2,7 @@ export type SocketOptionCategory = 'screw' | 'light';
 
 export interface SocketOptions {
     _id: string;
+    id?: string;
     screwTypes: string[];
     lightTypes: string[];
     updatedAt?: string;
@@ -9,6 +10,7 @@ export interface SocketOptions {
 
 export const DEFAULT_SOCKET_OPTIONS: SocketOptions = {
     _id: 'socket_options',
+    id: 'socket_options',
     screwTypes: ['E27', 'G9', 'GU10', 'Linestra Bulb', 'LED (Integrated)', 'Mixed: GU10 + E27', 'Mixed: G9 + E27'],
     lightTypes: [
         'LED - Max 5W',
@@ -24,12 +26,13 @@ export const DEFAULT_SOCKET_OPTIONS: SocketOptions = {
 
 export interface SiteOptions {
     _id: string;
+    id?: string;
     isNewCollectionActive: boolean;
     updatedAt?: string;
 }
 
 export const DEFAULT_SITE_OPTIONS: SiteOptions = {
     _id: 'site_options',
+    id: 'site_options',
     isNewCollectionActive: true
 };
-

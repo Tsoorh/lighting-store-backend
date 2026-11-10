@@ -59,6 +59,7 @@ export interface HeroVideoConfig {
 
 export interface SiteMediaConfig {
     _id: string // 'homepage_media'
+    id?: string
     version: number // Optimistic concurrency version counter
     publicationId?: string
     heroVideo: HeroVideoConfig
@@ -69,6 +70,7 @@ export interface SiteMediaConfig {
 
 export interface SiteMediaLogEntry {
     _id?: string
+    id?: string
     publicationId: string // Shared across all slots published together
     actionType: 'replacement' | 'restoration'
     mediaType: MediaTarget

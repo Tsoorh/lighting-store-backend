@@ -16,6 +16,7 @@
     "keywords": [],
     "dependencies": {
         "@types/node": "^22.0.0",
+        "@types/pg": "^8.23.1",
         "axios": "^1.17.0",
         "bcrypt": "^6.0.0",
         "cloudinary": "^2.8.0",
@@ -28,9 +29,9 @@
         "express-rate-limit": "^8.5.2",
         "helmet": "^8.2.0",
         "jsonwebtoken": "^9.0.3",
-        "mongodb": "^7.2.0",
         "pdfkit": "^0.18.0",
         "pdfmake": "^0.3.9",
+        "pg": "^8.23.1",
         "xlsx": "^0.18.5",
         "zod": "^4.4.3"
     },

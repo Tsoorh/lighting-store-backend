@@ -1,9 +1,8 @@
-import { ObjectId } from "mongodb"
-
 export type Role = 'admin' | 'supplier' | 'architect'
 
 export type Miniuser = {
-    _id?: ObjectId
+    _id?: string
+    id?: string
     fullname: string
     username: string
     role?: Role
@@ -26,11 +25,11 @@ export type UserInBody = {
     user: User
 }
  
-export type LoginCredentials={
-    username:string
-    password:string
+export type LoginCredentials = {
+    username: string
+    password: string
 }
 
-export type CredentialInBody={
+export type CredentialInBody = {
     credentials: LoginCredentials
 }

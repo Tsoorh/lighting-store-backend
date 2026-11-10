@@ -66,7 +66,7 @@ describe('Socket Options Unit Tests', () => {
 
     describe('Service Logic with Mocked DB', () => {
         let mockDoc: SocketOptions | null = null;
-        let mockCollection: any;
+        let queryMock: jest.SpyInstance;
 
         beforeEach(() => {
             mockDoc = {
@@ -76,27 +76,43 @@ describe('Socket Options Unit Tests', () => {
                 updatedAt: new Date().toISOString()
             };
 
-            mockCollection = {
-                findOne: jest.fn(async () => mockDoc ? JSON.parse(JSON.stringify(mockDoc)) : null),
-                insertOne: jest.fn(async (doc: any) => {
-                    mockDoc = JSON.parse(JSON.stringify(doc));
-                    return { acknowledged: true, insertedId: doc._id };
-                }),
-                updateOne: jest.fn(async (filter: any, update: any) => {
-                    if (!mockDoc) return { acknowledged: true };
-                    if (update.$push) {
-                        for (const [key, val] of Object.entries(update.$push)) {
-                            (mockDoc as any)[key] = [...((mockDoc as any)[key] || []), val];
-                        }
-                    }
-                    if (update.$set) {
-                        Object.assign(mockDoc, update.$set);
-                    }
-                    return { acknowledged: true };
-                })
-            };
+            queryMock = jest.spyOn(dbService, 'query').mockImplementation(async (sql: string, params?: any[]) => {
+                if (sql.includes('SELECT') && params && params[0] === 'socket_options') {
+                    if (!mockDoc) return { rows: [], rowCount: 0 } as any;
+                    return {
+                        rows: [{
+                            id: 'socket_options',
+                            data: {
+                                screwTypes: mockDoc.screwTypes,
+                                lightTypes: mockDoc.lightTypes
+                            },
+                            updated_at: mockDoc.updatedAt
+                        }],
+                        rowCount: 1
+                    } as any;
+                }
 
-            jest.spyOn(dbService, 'getCollection').mockResolvedValue(mockCollection);
+                if (sql.includes('INSERT INTO public.options') && params) {
+                    const parsedData = typeof params[1] === 'string' ? JSON.parse(params[1]) : params[1];
+                    const now = new Date().toISOString();
+                    mockDoc = {
+                        _id: 'socket_options',
+                        screwTypes: parsedData.screwTypes || [],
+                        lightTypes: parsedData.lightTypes || [],
+                        updatedAt: now
+                    };
+                    return {
+                        rows: [{
+                            id: 'socket_options',
+                            data: parsedData,
+                            updated_at: now
+                        }],
+                        rowCount: 1
+                    } as any;
+                }
+
+                return { rows: [], rowCount: 0 } as any;
+            });
         });
 
         afterEach(() => {
@@ -114,7 +130,7 @@ describe('Socket Options Unit Tests', () => {
             const options = await optionsService.getSocketOptions();
             expect(options.screwTypes).toEqual(DEFAULT_SOCKET_OPTIONS.screwTypes);
             expect(options.lightTypes).toEqual(DEFAULT_SOCKET_OPTIONS.lightTypes);
-            expect(mockCollection.insertOne).toHaveBeenCalled();
+            expect(queryMock).toHaveBeenCalled();
         });
 
         it('should add a new screw option and avoid duplicates case-insensitively', async () => {
@@ -134,4 +150,3 @@ describe('Socket Options Unit Tests', () => {
         });
     });
 });
-

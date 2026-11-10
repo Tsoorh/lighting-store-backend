@@ -139,8 +139,17 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     res.status(500).send('Internal Server Error');
 });
 
-const port = process.env.PORT || 3000
-app.listen(port, () => loggerService.info(`Server ready at port ${port}` ));
+const port = process.env.PORT || 3000;
+const server = app.listen(port, () => loggerService.info(`Server ready at port ${port}`));
+
+server.on('error', (err: any) => {
+    if (err.code === 'EADDRINUSE') {
+        loggerService.error(`Port ${port} is already in use by another process (EADDRINUSE). Please terminate that process or set PORT in .env.`);
+    } else {
+        loggerService.error('Server error:', err);
+    }
+    process.exit(1);
+});
 
 
 // for package.json -> script:  // "start": "set PORT=3030 & nodemon --ignore \"./data\" server.js"

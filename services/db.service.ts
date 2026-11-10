@@ -1,41 +1,61 @@
-import { config } from "../config/index";
-import { loggerService } from "./logger.service";
-import { MongoClient, Db, Collection, Document } from "mongodb";
+import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
+import { config } from '../config/index';
+import { loggerService } from './logger.service';
 
+let pool: Pool | null = null;
 
-export const dbService = { getCollection, close };
+function getPool(): Pool {
+    if (!pool) {
+        const url = config.postgresURL;
+        if (!url) {
+            loggerService.error('FATAL: POSTGRES_URL is missing in environment/config.');
+            throw new Error('Database connection URL is not configured.');
+        }
 
-let dbConn: Db | null = null
-let client: MongoClient | null = null
+        const isLocal = url.includes('localhost') || url.includes('127.0.0.1') || url.includes('sslmode=disable');
 
-async function getCollection<T extends Document>(collectionName: string): Promise<Collection<T>> {
-    try {
-        const db = await _connect()
-        const collection = await db.collection<T>(collectionName)
-        return collection
-    } catch (err) {
-        loggerService.error("Couldn't connect to Mongo collection")
-        throw err
+        pool = new Pool({
+            connectionString: url,
+            ssl: isLocal ? false : { rejectUnauthorized: false },
+            max: 20,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 10000
+        });
+
+        pool.on('error', (err) => {
+            loggerService.error('Unexpected error on idle PostgreSQL client', err);
+        });
     }
+    return pool;
 }
 
-async function _connect() :Promise<Db> {
-    if (dbConn) return dbConn
+async function query<T extends QueryResultRow = any>(text: string, params?: any[]): Promise<QueryResult<T>> {
+    const currentPool = getPool();
+    const start = Date.now();
     try {
-        console.log("Attempting to connect to MongoDB URL:", config.dbURL);
-        client = await MongoClient.connect(config.dbURL)
-        return dbConn = client.db(config.dbName)
+        const res = await currentPool.query<T>(text, params);
+        return res;
     } catch (err) {
-        loggerService.error('Cannot connect to DB')
+        loggerService.error('PostgreSQL query error', { text, error: err instanceof Error ? err.message : err });
         throw err;
     }
 }
 
-async function close() {
-    if (client) {
-        await client.close()
-        dbConn = null
-        client = null
-        console.log('MongoDB connection closed.')
+async function getClient(): Promise<PoolClient> {
+    const currentPool = getPool();
+    return await currentPool.connect();
+}
+
+async function close(): Promise<void> {
+    if (pool) {
+        await pool.end();
+        pool = null;
+        loggerService.info('PostgreSQL connection pool closed.');
     }
 }
+
+export const dbService = {
+    query,
+    getClient,
+    close
+};

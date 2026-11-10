@@ -28,8 +28,7 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET
 })
 
-const COLLECTION = 'site_media'
-const LOG_COLLECTION = 'site_media_log'
+const HOMEPAGE_MEDIA_ID = 'homepage_media'
 
 export const siteMediaService = {
     getSiteMedia,
@@ -39,25 +38,79 @@ export const siteMediaService = {
     auditOrphanedUploads
 }
 
+function _mapRowToSiteMedia(row: any): SiteMediaConfig {
+    return {
+        _id: row.id,
+        id: row.id,
+        version: row.version,
+        publicationId: row.publication_id,
+        heroVideo: row.hero_video || DEFAULT_SITE_MEDIA.heroVideo,
+        gallery: row.gallery || DEFAULT_SITE_MEDIA.gallery,
+        fullWidthBanner: row.full_width_banner || DEFAULT_FULL_WIDTH_BANNER,
+        updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString()
+    }
+}
+
+function _mapRowToLog(row: any): SiteMediaLogEntry {
+    return {
+        _id: row.id,
+        id: row.id,
+        publicationId: row.publication_id,
+        actionType: row.action_type,
+        mediaType: row.media_type,
+        slotId: row.slot_id,
+        slotName: row.slot_name,
+        previousAsset: row.previous_asset,
+        newAsset: row.new_asset,
+        replacedAt: row.replaced_at ? new Date(row.replaced_at).toISOString() : new Date().toISOString(),
+        replacedBy: row.replaced_by
+    }
+}
+
 async function getSiteMedia(): Promise<SiteMediaConfig> {
     try {
-        const collection = await dbService.getCollection<SiteMediaConfig>(COLLECTION)
-        let config = await collection.findOne({ _id: 'homepage_media' })
-        
-        if (!config) {
+        const sql = `
+            SELECT id, version, hero_video, gallery, full_width_banner, publication_id, updated_at 
+            FROM public.site_media 
+            WHERE id = $1;
+        `
+        const res = await dbService.query(sql, [HOMEPAGE_MEDIA_ID])
+
+        if (res.rows.length === 0) {
             const initialDoc: SiteMediaConfig = {
                 ...DEFAULT_SITE_MEDIA,
                 updatedAt: new Date().toISOString()
             }
-            await collection.insertOne(initialDoc as any)
-            config = initialDoc
+            const insertSql = `
+                INSERT INTO public.site_media (
+                    id, version, publication_id, hero_video, full_width_banner, gallery, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+                ON CONFLICT (id) DO UPDATE SET 
+                    version = EXCLUDED.version,
+                    hero_video = EXCLUDED.hero_video,
+                    gallery = EXCLUDED.gallery,
+                    full_width_banner = EXCLUDED.full_width_banner,
+                    updated_at = EXCLUDED.updated_at
+                RETURNING *;
+            `
+            const insertRes = await dbService.query(insertSql, [
+                HOMEPAGE_MEDIA_ID,
+                initialDoc.version || 1,
+                initialDoc.publicationId || 'pub_init',
+                JSON.stringify(initialDoc.heroVideo),
+                JSON.stringify(initialDoc.fullWidthBanner || DEFAULT_FULL_WIDTH_BANNER),
+                JSON.stringify(initialDoc.gallery)
+            ])
+            return _mapRowToSiteMedia(insertRes.rows[0])
         }
-        if (config && !config.fullWidthBanner) {
+
+        const config = _mapRowToSiteMedia(res.rows[0])
+        if (!config.fullWidthBanner) {
             config.fullWidthBanner = DEFAULT_FULL_WIDTH_BANNER
         }
         return config
     } catch (err) {
-        loggerService.error('Failed to get site media config', err)
+        loggerService.error('Failed to get site media config from PostgreSQL', err)
         throw err
     }
 }
@@ -103,10 +156,13 @@ async function publishMedia(
     draftConfig: PublishMediaInput['draftConfig'], 
     user: Miniuser
 ) {
-    const collection = await dbService.getCollection<SiteMediaConfig>(COLLECTION)
-    const logCollection = await dbService.getCollection<SiteMediaLogEntry>(LOG_COLLECTION)
-
-    let current = await collection.findOne({ _id: 'homepage_media' })
+    const checkSql = `
+        SELECT id, version, hero_video, gallery, full_width_banner, publication_id, updated_at 
+        FROM public.site_media 
+        WHERE id = $1;
+    `
+    const currentRes = await dbService.query(checkSql, [HOMEPAGE_MEDIA_ID])
+    const current = currentRes.rows.length > 0 ? _mapRowToSiteMedia(currentRes.rows[0]) : null
 
     const publicationId = `pub_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`
     const now = new Date().toISOString()
@@ -156,7 +212,7 @@ async function publishMedia(
         })
     }
 
-    // 2. Detect changes in the 5 Gallery Slots
+    // Detect changes in the 5 Gallery Slots
     const updatedGallery: SiteMediaConfig['gallery'] = { ...(current?.gallery || DEFAULT_SITE_MEDIA.gallery) }
     for (const slotId of CANONICAL_SLOT_IDS) {
         const curSlot = current?.gallery?.[slotId] || DEFAULT_SITE_MEDIA.gallery[slotId]
@@ -203,7 +259,7 @@ async function publishMedia(
         }
     }
 
-    // 3. Detect changes in Full-Width Banner
+    // Detect changes in Full-Width Banner
     const currentBanner = current?.fullWidthBanner || DEFAULT_FULL_WIDTH_BANNER
     const draftBanner = draftConfig.fullWidthBanner || DEFAULT_FULL_WIDTH_BANNER
     const currentBannerPos = currentBanner.objectPosition || { x: 50, y: 50 }
@@ -258,7 +314,8 @@ async function publishMedia(
     const newVersion = current ? currentVersion + 1 : 1
 
     const configToSave: SiteMediaConfig = {
-        _id: 'homepage_media',
+        _id: HOMEPAGE_MEDIA_ID,
+        id: HOMEPAGE_MEDIA_ID,
         version: newVersion,
         publicationId,
         heroVideo: {
@@ -274,28 +331,48 @@ async function publishMedia(
     }
 
     if (!current) {
-        await collection.insertOne(configToSave as any)
+        const insertSql = `
+            INSERT INTO public.site_media (
+                id, version, publication_id, hero_video, full_width_banner, gallery, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, NOW());
+        `
+        await dbService.query(insertSql, [
+            HOMEPAGE_MEDIA_ID,
+            newVersion,
+            publicationId,
+            JSON.stringify(configToSave.heroVideo),
+            JSON.stringify(configToSave.fullWidthBanner),
+            JSON.stringify(configToSave.gallery)
+        ])
     } else {
         if (baseVersion !== currentVersion && baseVersion !== 0 && typeof current.version === 'number') {
             throw new VersionConflictError(`Conflict: published version is ${currentVersion}, but your draft was based on version ${baseVersion}.`)
         }
 
-        const { _id, ...fieldsToUpdate } = configToSave
+        const updateSql = `
+            UPDATE public.site_media SET
+                version = $1,
+                publication_id = $2,
+                hero_video = $3,
+                full_width_banner = $4,
+                gallery = $5,
+                updated_at = NOW()
+            WHERE id = $6 AND (version = $7 OR version = $8 OR version IS NULL)
+            RETURNING version;
+        `
+        const updateResult = await dbService.query(updateSql, [
+            newVersion,
+            publicationId,
+            JSON.stringify(configToSave.heroVideo),
+            JSON.stringify(configToSave.fullWidthBanner),
+            JSON.stringify(configToSave.gallery),
+            HOMEPAGE_MEDIA_ID,
+            baseVersion,
+            currentVersion
+        ])
 
-        const updateResult = await collection.updateOne(
-            { 
-                _id: 'homepage_media',
-                $or: [
-                    { version: baseVersion },
-                    { version: currentVersion },
-                    { version: { $exists: false } }
-                ]
-            },
-            { $set: fieldsToUpdate as any }
-        )
-
-        if (updateResult.matchedCount === 0) {
-            const latestDoc = await collection.findOne({ _id: 'homepage_media' })
+        if (updateResult.rowCount === 0) {
+            const latestDoc = await getSiteMedia()
             const latestVersion = latestDoc?.version ?? 0
             loggerService.warn(`Version conflict during site media publish. Expected: ${baseVersion}, Found: ${latestVersion}`)
             throw new VersionConflictError(`Conflict: published version is ${latestVersion}, but your draft was based on version ${baseVersion}.`)
@@ -304,7 +381,26 @@ async function publishMedia(
 
     // Commit audit log entries
     if (logEntries.length > 0) {
-        await logCollection.insertMany(logEntries as any)
+        for (const entry of logEntries) {
+            const entryId = crypto.randomBytes(12).toString('hex')
+            const logSql = `
+                INSERT INTO public.site_media_logs (
+                    id, publication_id, action_type, media_type, slot_id, slot_name, previous_asset, new_asset, replaced_at, replaced_by
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
+            `
+            await dbService.query(logSql, [
+                entryId,
+                entry.publicationId,
+                entry.actionType,
+                entry.mediaType,
+                entry.slotId,
+                JSON.stringify(entry.slotName),
+                JSON.stringify(entry.previousAsset),
+                JSON.stringify(entry.newAsset),
+                entry.replacedAt,
+                JSON.stringify(entry.replacedBy)
+            ])
+        }
     }
 
     loggerService.info(`Site media published successfully. Version: ${newVersion}, PublicationId: ${publicationId}, Changed slots: ${logEntries.length}`)
@@ -319,61 +415,68 @@ async function publishMedia(
 
 async function getMediaLog(filterBy: { slotId?: string; actionType?: string; limit?: number; skip?: number } = {}) {
     try {
-        const logCollection = await dbService.getCollection<SiteMediaLogEntry>(LOG_COLLECTION)
-        const criteria: any = {}
+        const conditions: string[] = []
+        const values: any[] = []
 
         if (filterBy.slotId && filterBy.slotId !== 'all') {
-            criteria.slotId = filterBy.slotId
+            values.push(filterBy.slotId)
+            conditions.push(`slot_id = $${values.length}`)
         }
         if (filterBy.actionType && filterBy.actionType !== 'all') {
-            criteria.actionType = filterBy.actionType
+            values.push(filterBy.actionType)
+            conditions.push(`action_type = $${values.length}`)
         }
+
+        const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+        
+        const countSql = `SELECT COUNT(*) AS total FROM public.site_media_logs ${whereClause};`
+        const countRes = await dbService.query(countSql, values)
+        const total = parseInt(countRes.rows[0]?.total || '0', 10)
 
         const limit = Math.min(filterBy.limit || 50, 100)
         const skip = filterBy.skip || 0
 
-        const [items, total] = await Promise.all([
-            logCollection.find(criteria).sort({ replacedAt: -1 }).skip(skip).limit(limit).toArray(),
-            logCollection.countDocuments(criteria)
-        ])
+        const dataValues = [...values, limit, skip]
+        const dataSql = `
+            SELECT id, publication_id, action_type, media_type, slot_id, slot_name, previous_asset, new_asset, replaced_at, replaced_by
+            FROM public.site_media_logs
+            ${whereClause}
+            ORDER BY replaced_at DESC
+            LIMIT $${dataValues.length - 1} OFFSET $${dataValues.length};
+        `
+        const dataRes = await dbService.query(dataSql, dataValues)
+        const items = dataRes.rows.map(_mapRowToLog)
 
         return { items, total }
     } catch (err) {
-        loggerService.error('Failed to query site media log', err)
+        loggerService.error('Failed to query site media log from PostgreSQL', err)
         throw err
     }
 }
 
 async function auditOrphanedUploads(gracePeriodHours = 168) {
     try {
-        const collection = await dbService.getCollection<SiteMediaConfig>(COLLECTION)
-        const logCollection = await dbService.getCollection<SiteMediaLogEntry>(LOG_COLLECTION)
-
-        const activeDoc = await collection.findOne({ _id: 'homepage_media' })
+        const activeDoc = await getSiteMedia()
         const activePublicIds = new Set<string>()
 
         if (activeDoc) {
-            if (activeDoc.heroVideo.publicId) activePublicIds.add(activeDoc.heroVideo.publicId)
-            if (activeDoc.heroVideo.posterPublicId) activePublicIds.add(activeDoc.heroVideo.posterPublicId)
+            if (activeDoc.heroVideo?.publicId) activePublicIds.add(activeDoc.heroVideo.publicId)
+            if (activeDoc.heroVideo?.posterPublicId) activePublicIds.add(activeDoc.heroVideo.posterPublicId)
             for (const slotId of CANONICAL_SLOT_IDS) {
-                if (activeDoc.gallery[slotId]?.publicId) {
+                if (activeDoc.gallery?.[slotId]?.publicId) {
                     activePublicIds.add(activeDoc.gallery[slotId].publicId!)
                 }
             }
         }
 
-        const historyItems = await logCollection.find({}).project({ 
-            'previousAsset.publicId': 1, 
-            'previousAsset.posterPublicId': 1, 
-            'newAsset.publicId': 1, 
-            'newAsset.posterPublicId': 1 
-        }).toArray()
-
-        for (const item of historyItems) {
-            if (item.previousAsset?.publicId) activePublicIds.add(item.previousAsset.publicId)
-            if (item.previousAsset?.posterPublicId) activePublicIds.add(item.previousAsset.posterPublicId)
-            if (item.newAsset?.publicId) activePublicIds.add(item.newAsset.publicId)
-            if (item.newAsset?.posterPublicId) activePublicIds.add(item.newAsset.posterPublicId)
+        const historyRes = await dbService.query(`SELECT previous_asset, new_asset FROM public.site_media_logs;`)
+        for (const item of historyRes.rows) {
+            const prev = item.previous_asset
+            const next = item.new_asset
+            if (prev?.publicId) activePublicIds.add(prev.publicId)
+            if (prev?.posterPublicId) activePublicIds.add(prev.posterPublicId)
+            if (next?.publicId) activePublicIds.add(next.publicId)
+            if (next?.posterPublicId) activePublicIds.add(next.posterPublicId)
         }
 
         // Query Cloudinary for homepage assets (images and videos)
@@ -415,4 +518,3 @@ async function auditOrphanedUploads(gracePeriodHours = 168) {
         throw err
     }
 }
-

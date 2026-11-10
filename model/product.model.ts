@@ -1,16 +1,14 @@
-import { ObjectId } from "mongodb"
-
 export type FilterBy = {
     txt?: string
     price?: number
-    category?:string
+    category?: string
     isActive?: boolean
     isNew?: boolean
 }
 
 type hebrewEnglishObj = {
-    he:string
-    en:string
+    he: string
+    en: string
 }
 
 export type ProductPrice = {
@@ -21,7 +19,8 @@ export type ProductPrice = {
 }
 
 export type Product = {
-    _id?: ObjectId
+    _id?: string
+    id?: string
     name: hebrewEnglishObj
     description: hebrewEnglishObj
     price?: ProductPrice[]
@@ -39,18 +38,19 @@ export type ProductSize = {
     depth?: number
     upTo?: number
 }
+
 type SocketType = {
     screwType: string
     lightType: string
 }
 
 export type FullProduct = Product & {
-    category:hebrewEnglishObj[]
+    category: hebrewEnglishObj[]
     imgsUrl: string[]
     diameter?: number
     size: ProductSize[]
-    socketType:SocketType
-    material:hebrewEnglishObj[]
-    woodType:hebrewEnglishObj[]
+    socketType: SocketType
+    material: hebrewEnglishObj[]
+    woodType: hebrewEnglishObj[]
     isActive?: boolean
 }
