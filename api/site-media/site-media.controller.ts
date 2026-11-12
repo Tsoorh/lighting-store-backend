@@ -17,7 +17,7 @@ async function getSiteMedia(req: Request, res: Response) {
     try {
         const config = await siteMediaService.getSiteMedia()
         res.json(config)
-    } catch (err: any) {
+    } catch (err: unknown) {
         loggerService.error('siteMediaController.getSiteMedia failed', err)
         res.status(500).json({ error: 'Failed to retrieve site media configuration' })
     }
@@ -36,9 +36,9 @@ async function createUploadSignature(req: Request, res: Response) {
         const { slotId, resourceType } = validation.data
         const signatureData = await siteMediaService.generateUploadSignature(slotId, resourceType)
         res.json(signatureData)
-    } catch (err: any) {
+    } catch (err: unknown) {
         loggerService.error('siteMediaController.createUploadSignature failed', err)
-        res.status(500).json({ error: err.message || 'Failed to generate upload signature' })
+        res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to generate upload signature' })
     }
 }
 
@@ -59,12 +59,13 @@ async function publishMedia(req: Request, res: Response) {
 
         const result = await siteMediaService.publishMedia(baseVersion, draftConfig, user)
         res.json(result)
-    } catch (err: any) {
-        if (err instanceof VersionConflictError || err.statusCode === 409) {
-            return res.status(409).json({ error: err.message, isConflict: true })
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to publish media updates'
+        if (err instanceof VersionConflictError || (err as { statusCode?: number })?.statusCode === 409) {
+            return res.status(409).json({ error: message, isConflict: true })
         }
         loggerService.error('siteMediaController.publishMedia failed', err)
-        res.status(500).json({ error: err.message || 'Failed to publish media updates' })
+        res.status(500).json({ error: message })
     }
 }
 
@@ -80,7 +81,7 @@ async function getMediaLog(req: Request, res: Response) {
 
         const data = await siteMediaService.getMediaLog(filterBy)
         res.json(data)
-    } catch (err: any) {
+    } catch (err: unknown) {
         loggerService.error('siteMediaController.getMediaLog failed', err)
         res.status(500).json({ error: 'Failed to retrieve media history log' })
     }
@@ -90,7 +91,7 @@ async function auditOrphans(req: Request, res: Response) {
     try {
         const report = await siteMediaService.auditOrphanedUploads()
         res.json(report)
-    } catch (err: any) {
+    } catch (err: unknown) {
         loggerService.error('siteMediaController.auditOrphans failed', err)
         res.status(500).json({ error: 'Failed to run orphan audit' })
     }

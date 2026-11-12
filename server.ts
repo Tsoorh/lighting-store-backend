@@ -47,6 +47,8 @@ const limiter = rateLimit({
 
 // middlewares
 app.use(helmet({
+  hsts: { maxAge: 31536000, includeSubDomains: true },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
@@ -59,8 +61,8 @@ app.use(helmet({
 }));
 app.use(express.static('public'));
 app.use(cookieParser());
-app.use(express.json());
-app.use(express.urlencoded({extended:true}))
+app.use(express.json({ limit: '500kb' }));
+app.use(express.urlencoded({ extended: true, limit: '500kb' }))
 app.set('query parser', 'extended');
 app.use(setupAsyncLocalStorage)
 
@@ -110,7 +112,8 @@ app.get('/product/:productId', async (req, res) => {
         }
 
         const rawHtml = await fs.promises.readFile(indexPath, 'utf-8');
-        const pageUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+        const publicSiteOrigin = (process.env.PUBLIC_SITE_URL || 'https://tiranlasry.com').replace(/\/+$/, '');
+        const pageUrl = `${publicSiteOrigin}${req.originalUrl}`;
         const enrichedHtml = injectProductOpenGraph(rawHtml, product, pageUrl);
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -134,7 +137,8 @@ app.use('/api', (req, res) => {
 });
 
 // Global Error Handler
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
+    void _next;
     loggerService.error('Unhandled Error:', err);
     res.status(500).send('Internal Server Error');
 });
@@ -142,7 +146,7 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 const port = process.env.PORT || 3000;
 const server = app.listen(port, () => loggerService.info(`Server ready at port ${port}`));
 
-server.on('error', (err: any) => {
+server.on('error', (err: NodeJS.ErrnoException) => {
     if (err.code === 'EADDRINUSE') {
         loggerService.error(`Port ${port} is already in use by another process (EADDRINUSE). Please terminate that process or set PORT in .env.`);
     } else {

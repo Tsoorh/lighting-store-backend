@@ -35,6 +35,7 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 Desktop.ini
+*:Zone.Identifier
 
 # Testing
 coverage/

@@ -204,7 +204,7 @@ describe('Site Media CMS Unit Tests', () => {
         })
 
         it('should default objectPosition to { x: 50, y: 50 } if omitted', () => {
-            const slot1WithoutPos: any = { ...DEFAULT_SITE_MEDIA.gallery.slot_1 }
+            const slot1WithoutPos = { ...DEFAULT_SITE_MEDIA.gallery.slot_1 } as Record<string, unknown>
             delete slot1WithoutPos.objectPosition
 
             const input = {
@@ -225,7 +225,7 @@ describe('Site Media CMS Unit Tests', () => {
         })
 
         it('should reject when a canonical slot is missing', () => {
-            const galleryWithoutSlot6: any = { ...DEFAULT_SITE_MEDIA.gallery }
+            const galleryWithoutSlot6 = { ...DEFAULT_SITE_MEDIA.gallery } as Record<string, unknown>
             delete galleryWithoutSlot6.slot_6
 
             const input = {

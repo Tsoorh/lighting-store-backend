@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import { v2 as cloudinary } from 'cloudinary'
+import { cloudinary } from '../../services/cloudinary.service'
 import { dbService } from '../../services/db.service'
 import { loggerService } from '../../services/logger.service'
 import { 
@@ -38,32 +38,32 @@ export const siteMediaService = {
     auditOrphanedUploads
 }
 
-function _mapRowToSiteMedia(row: any): SiteMediaConfig {
+function _mapRowToSiteMedia(row: Record<string, unknown>): SiteMediaConfig {
     return {
-        _id: row.id,
-        id: row.id,
-        version: row.version,
-        publicationId: row.publication_id,
-        heroVideo: row.hero_video || DEFAULT_SITE_MEDIA.heroVideo,
-        gallery: row.gallery || DEFAULT_SITE_MEDIA.gallery,
-        fullWidthBanner: row.full_width_banner || DEFAULT_FULL_WIDTH_BANNER,
-        updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString()
+        _id: String(row.id),
+        id: String(row.id),
+        version: row.version as number,
+        publicationId: row.publication_id as string,
+        heroVideo: (row.hero_video as SiteMediaConfig['heroVideo']) || DEFAULT_SITE_MEDIA.heroVideo,
+        gallery: (row.gallery as SiteMediaConfig['gallery']) || DEFAULT_SITE_MEDIA.gallery,
+        fullWidthBanner: (row.full_width_banner as SiteMediaConfig['fullWidthBanner']) || DEFAULT_FULL_WIDTH_BANNER,
+        updatedAt: row.updated_at ? new Date(row.updated_at as string | Date).toISOString() : new Date().toISOString()
     }
 }
 
-function _mapRowToLog(row: any): SiteMediaLogEntry {
+function _mapRowToLog(row: Record<string, unknown>): SiteMediaLogEntry {
     return {
-        _id: row.id,
-        id: row.id,
-        publicationId: row.publication_id,
-        actionType: row.action_type,
-        mediaType: row.media_type,
-        slotId: row.slot_id,
-        slotName: row.slot_name,
-        previousAsset: row.previous_asset,
-        newAsset: row.new_asset,
-        replacedAt: row.replaced_at ? new Date(row.replaced_at).toISOString() : new Date().toISOString(),
-        replacedBy: row.replaced_by
+        _id: String(row.id),
+        id: String(row.id),
+        publicationId: row.publication_id as string,
+        actionType: row.action_type as SiteMediaLogEntry['actionType'],
+        mediaType: row.media_type as SiteMediaLogEntry['mediaType'],
+        slotId: row.slot_id as SiteMediaLogEntry['slotId'],
+        slotName: row.slot_name as SiteMediaLogEntry['slotName'],
+        previousAsset: row.previous_asset as SiteMediaLogEntry['previousAsset'],
+        newAsset: row.new_asset as SiteMediaLogEntry['newAsset'],
+        replacedAt: row.replaced_at ? new Date(row.replaced_at as string | Date).toISOString() : new Date().toISOString(),
+        replacedBy: row.replaced_by as SiteMediaLogEntry['replacedBy']
     }
 }
 
@@ -416,7 +416,7 @@ async function publishMedia(
 async function getMediaLog(filterBy: { slotId?: string; actionType?: string; limit?: number; skip?: number } = {}) {
     try {
         const conditions: string[] = []
-        const values: any[] = []
+        const values: unknown[] = []
 
         if (filterBy.slotId && filterBy.slotId !== 'all') {
             values.push(filterBy.slotId)
@@ -480,7 +480,7 @@ async function auditOrphanedUploads(gracePeriodHours = 168) {
         }
 
         // Query Cloudinary for homepage assets (images and videos)
-        let cloudinaryResources: any[] = []
+        let cloudinaryResources: Array<{ public_id: string; created_at: string; format?: string; bytes?: number }> = []
         try {
             const resImages = await cloudinary.api.resources({
                 type: 'upload',

@@ -7,7 +7,6 @@ import bcrypt from 'bcrypt';
 
 const ACCESS_TOKEN_KEY = process.env.ACCESS_TOKEN_KEY
 const REFRESH_TOKEN_KEY = process.env.REFRESH_TOKEN_KEY
-const SALTROUNDS = Number(process.env.SALT_ROUNDS) || 11
 
 if (!ACCESS_TOKEN_KEY || !REFRESH_TOKEN_KEY) {
     throw new Error('FATAL: JWT secret keys (ACCESS_TOKEN_KEY/REFRESH_TOKEN_KEY) are missing in environment')
@@ -26,12 +25,12 @@ export const authService = {
 
 function getLoginAccessToken(user: Miniuser) {
     const cleanUser = _getCleanMiniUser(user)
-    return jwt.sign(cleanUser, ACCESS_TOKEN_KEY!, { expiresIn: '1825d' })
+    return jwt.sign(cleanUser, ACCESS_TOKEN_KEY!, { expiresIn: '1825d', algorithm: 'HS256' })
 }
 
 function getLoginRefreshToken(user: Miniuser) {
     const cleanUser = _getCleanMiniUser(user)
-    return jwt.sign(cleanUser, REFRESH_TOKEN_KEY!, { expiresIn: '1825d' })
+    return jwt.sign(cleanUser, REFRESH_TOKEN_KEY!, { expiresIn: '1825d', algorithm: 'HS256' })
 }
 
 function _getCleanMiniUser(user: Miniuser): Miniuser {
@@ -46,11 +45,11 @@ function _getCleanMiniUser(user: Miniuser): Miniuser {
 }
 
 function validateToken(token: string):Miniuser {
-    return jwt.verify(token, ACCESS_TOKEN_KEY!) as unknown as Miniuser
+    return jwt.verify(token, ACCESS_TOKEN_KEY!, { algorithms: ['HS256'] }) as unknown as Miniuser
 }
 
 function validateRefreshToken(token: string): Miniuser {
-    return jwt.verify(token, REFRESH_TOKEN_KEY!) as unknown as Miniuser
+    return jwt.verify(token, REFRESH_TOKEN_KEY!, { algorithms: ['HS256'] }) as unknown as Miniuser
 }
 
 
@@ -83,11 +82,9 @@ async function register(user: User): Promise<Miniuser> {
 
         const userDetails = await userService.getByUsername(user.username);
         if (userDetails) throw new Error("Username already taken")
-        
-        const hash = await bcrypt.hash(user.password as string, SALTROUNDS)
-        const userToSave: User = { ...user, password: hash }
-        
-        const userWithId = await userService.add(userToSave)
+
+        // userService.add hashes user.password internally
+        const userWithId = await userService.add(user)
 
         return convertUserToMiniUser(userWithId)
     } catch (err) {

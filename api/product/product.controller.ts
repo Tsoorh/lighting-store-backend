@@ -3,6 +3,7 @@ import { loggerService } from "../../services/logger.service";
 import { productService } from "./products.service";
 import { FullProduct, ProductParams, FilterBy } from "../../model/product.model";
 import { cloudinaryService } from "../../services/cloudinary.service";
+import { getCloudinaryPublicId } from "../../services/cloudinary-url.util";
 import { ProductSaveSchema } from "./product.schema";
 import { exportService } from "../../services/export.service";
 import { asyncLocalStorage } from "../../services/als.service";
@@ -40,13 +41,6 @@ export async function getProductById(req: Request<ProductParams>, res: Response)
     }
 }
 
-function _getCloudinaryPublicId(imgId: string): string {
-    const cleanId = imgId.replace(/[\r\n\s]+/g, '').replace(/\.[^/.]+$/, '').replace(/^4G8A/i, '')
-    const upper = cleanId.toUpperCase()
-    if (upper.startsWith('C_') || upper.startsWith('H_') || upper.startsWith('S_')) return cleanId
-    return `4G8A${cleanId}`
-}
-
 export async function saveProduct(req: Request, res: Response): Promise<void> {
     const validation = ProductSaveSchema.safeParse(req.body.product)
     if (!validation.success) {
@@ -62,7 +56,7 @@ export async function saveProduct(req: Request, res: Response): Promise<void> {
 
         if (product._id) {
             // Optimized Diffing: Fetch only imgsUrl field using projection
-            const existingProduct = await productService.getById(product._id.toString(), { projection: { imgsUrl: 1 } }) as Partial<FullProduct> | null
+            const existingProduct = await productService.getById(product._id.toString()) as Partial<FullProduct> | null
             if (existingProduct) {
                 const oldImages = existingProduct.imgsUrl || []
                 const newImages = product.imgsUrl || []
@@ -76,7 +70,7 @@ export async function saveProduct(req: Request, res: Response): Promise<void> {
         // Managed Parallelism for Cloudinary deletions
         if (imagesToDelete.length > 0) {
             const deletionTasks = imagesToDelete.map(imgId => {
-                const publicId = _getCloudinaryPublicId(imgId)
+                const publicId = getCloudinaryPublicId(imgId)
                 return cloudinaryService.removeImage(publicId)
             })
             
@@ -100,17 +94,17 @@ export async function removeProduct(req: Request<ProductParams>, res: Response) 
     const { productId } = req.params
     try {
         // Fetch only imgsUrl for deletion before removing from DB
-        const existingProduct = await productService.getById(productId, { projection: { imgsUrl: 1 } }) as Partial<FullProduct> | null
+        const existingProduct = await productService.getById(productId) as Partial<FullProduct> | null
         const deletedId = await productService.remove(productId)
 
         if (existingProduct && existingProduct.imgsUrl && existingProduct.imgsUrl.length > 0) {
             const deletionTasks = existingProduct.imgsUrl.map(imgId => {
-                const publicId = _getCloudinaryPublicId(imgId)
+                const publicId = getCloudinaryPublicId(imgId)
                 return cloudinaryService.removeImage(publicId)
             })
 
             Promise.allSettled(deletionTasks).then(results => {
-                results.forEach((result, idx) => {
+                results.forEach((result) => {
                     if (result.status === 'rejected') {
                         loggerService.error(`Failed to delete image from Cloudinary on product removal`, result.reason)
                     }

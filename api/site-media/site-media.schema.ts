@@ -1,5 +1,20 @@
 import { z } from 'zod'
 
+/** Allow only empty/null URLs, root-relative paths (`/path`), or `http:`/`https:` URLs to prevent `javascript:`/`data:` XSS. */
+export function isSafeLinkUrl(url: string | null | undefined): boolean {
+    if (!url || !url.trim()) return true
+    const trimmed = url.trim()
+    if (trimmed.startsWith('/')) {
+        return !trimmed.startsWith('//')
+    }
+    try {
+        const parsed = new URL(trimmed)
+        return parsed.protocol === 'https:' || parsed.protocol === 'http:'
+    } catch {
+        return false
+    }
+}
+
 const objectPositionSchema = z.object({
     x: z.number().min(0).max(100),
     y: z.number().min(0).max(100)
@@ -36,7 +51,10 @@ const fullWidthBannerSchema = z.object({
         he: z.string().nullable().optional()
     }).nullable().optional(),
     objectPosition: objectPositionSchema.nullable().optional().default({ x: 50, y: 50 }),
-    linkUrl: z.string().nullable().optional(),
+    linkUrl: z.string().nullable().optional().refine(
+        isSafeLinkUrl,
+        { message: 'linkUrl must be a relative path starting with / or an http(s):// URL' }
+    ),
     recommendedResolution: z.string().nullable().optional(),
     targetRatio: z.number().nullable().optional(),
     updatedAt: z.string().nullable().optional(),

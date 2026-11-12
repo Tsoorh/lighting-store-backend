@@ -1,7 +1,6 @@
 import { asyncLocalStorage } from "../services/als.service"
 import { authService } from "../api/auth/auth.service"
 import type { NextFunction,Response,Request } from "express"
-import type { AsyncLocalStorage } from "async_hooks"
 import type { Miniuser } from "../model/user.model"
 import { loggerService } from "../services/logger.service"
 
@@ -22,7 +21,7 @@ export function setupAsyncLocalStorage(req:Request, res:Response, next:NextFunct
                 const alsStore = asyncLocalStorage.getStore() as AlsStore | undefined
                 if (alsStore) alsStore.loggedinUser = loggedinUser
             }
-        } catch (err) {
+        } catch {
             loggerService.debug(`Session token expired or invalid for ${req.url}`);
         }
         next();

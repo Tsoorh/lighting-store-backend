@@ -1,6 +1,6 @@
 import fs from 'fs'
 
-type logArgs = any[]
+type logArgs = unknown[]
 type logLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'
 
 export const loggerService = {
@@ -26,21 +26,20 @@ if (!fs.existsSync(logsDir)) {
 
 //define the time format
 function getTime() {
-    let now: Date = new Date()
+    const now: Date = new Date()
     return now.toLocaleString('he')
 }
 
-function isError(e: Error) {
-    return e && e.stack && e.message
+function isError(e: unknown): e is Error {
+    return e instanceof Error || (typeof e === 'object' && e !== null && 'stack' in e && 'message' in e)
 }
 
 function doLog(level: logLevel, ...args: logArgs) {
 
     const strs: string[] = args.map(arg =>
-        (typeof arg === 'string' || isError(arg)) ? arg : JSON.stringify(arg)
+        (typeof arg === 'string' || isError(arg)) ? String(arg) : JSON.stringify(arg)
     )
-    var line: string = strs.join(' | ')
-    line = `${getTime()} - ${level} - ${line}\n`
+    const line = `${getTime()} - ${level} - ${strs.join(' | ')}\n`
     console.log(line)
     fs.appendFile('./logs/backend.log', line, (err) => {
         if (err) console.log('FATAL: cannot write to log file')

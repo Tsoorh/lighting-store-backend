@@ -1,8 +1,9 @@
 import { CookieOptions, Request, Response } from "express";
 import { loggerService } from "../../services/logger.service";
 import { authService } from "./auth.service";
-import { CredentialInBody, LoginCredentials, Miniuser, User, UserInBody } from "../../model/user.model";
+import { CredentialInBody, Miniuser, User } from "../../model/user.model";
 import { userService } from "../user/user.service";
+import { loginSchema, registerSchema } from "./auth.schema";
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -20,19 +21,27 @@ const COOKIES_OPTIONS_REFRESH: CookieOptions = {
 
 
 
-export async function registerCont(req: Request<any, any, {newuser: User}>, res: Response) {
-    const newuser: User = req.body.newuser
+export async function registerCont(req: Request<Record<string, never>, unknown, {newuser: User}>, res: Response) {
+    const validation = registerSchema.safeParse(req.body)
+    if (!validation.success) {
+        return res.status(400).send({ error: validation.error.issues[0]?.message || 'Invalid registration payload' })
+    }
+    const newuser = validation.data.newuser as User
     try {
         const newMiniUser = await authService.register(newuser)
         res.status(200).send(newMiniUser)
     } catch (err) {
         loggerService.error("Couldn't register: ", err)
-        throw err
+        res.status(400).send({ error: err instanceof Error ? err.message : 'Failed to register' })
     }
 }
 
-export async function loginCont(req: Request<any, any, CredentialInBody>, res: Response) {
-    const credentials: LoginCredentials = req.body.credentials
+export async function loginCont(req: Request<Record<string, never>, unknown, CredentialInBody>, res: Response) {
+    const validation = loginSchema.safeParse(req.body)
+    if (!validation.success) {
+        return res.status(400).send({ error: validation.error.issues[0]?.message || 'Username and password are required' })
+    }
+    const { credentials } = validation.data
     try {
         const miniUser = await authService.login(credentials.username, credentials.password)
 
@@ -46,7 +55,7 @@ export async function loginCont(req: Request<any, any, CredentialInBody>, res: R
         res.status(200).send(miniUser)
     } catch (err) {
         loggerService.error("Couldn't login: ", err)
-        throw err
+        res.status(400).send({ error: err instanceof Error ? err.message : 'Failed to login' })
     }
 }
 

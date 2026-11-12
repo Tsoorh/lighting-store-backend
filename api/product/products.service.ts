@@ -1,7 +1,7 @@
 import crypto from "crypto"
 import { dbService } from "../../services/db.service"
 import { loggerService } from "../../services/logger.service"
-import { FilterBy, FullProduct, Product } from "../../model/product.model"
+import { FilterBy, FullProduct } from "../../model/product.model"
 import { asyncLocalStorage } from "../../services/als.service"
 import { Miniuser } from "../../model/user.model"
 
@@ -13,7 +13,8 @@ export const productService = {
     remove
 }
 
-function _mapRowToProduct(row: any): FullProduct {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function _mapRowToProduct(row: Record<string, any>): FullProduct {
     return {
         _id: row.id,
         id: row.id,
@@ -37,7 +38,7 @@ async function query(filterBy: FilterBy = {}): Promise<FullProduct[]> {
     const isAdmin = user?.role && user.role.trim().toLowerCase() === 'admin'
 
     const conditions: string[] = []
-    const values: any[] = []
+    const values: unknown[] = []
 
     // 1. Active status
     if (filterBy.isActive === true) {
@@ -114,7 +115,7 @@ async function query(filterBy: FilterBy = {}): Promise<FullProduct[]> {
     }
 }
 
-async function getById(productId: string, options: any = {}): Promise<FullProduct | null> {
+async function getById(productId: string): Promise<FullProduct | null> {
     try {
         const sql = `
             SELECT id, name, description, price, imgs_url, size, wood_type, material, socket_type, category, is_active, is_new
@@ -243,9 +244,9 @@ function _applyPricingLogic<T extends FullProduct>(product: T): T {
     if (!user || user.showPrices === false) {
         if (p.price && Array.isArray(p.price)) {
             p.price = p.price.map(priceEntry => {
-                const cleanPrice: any = { ...priceEntry }
-                delete cleanPrice.amount
-                return cleanPrice
+                const { amount: _amount, ...cleanPrice } = priceEntry
+                void _amount
+                return cleanPrice as typeof priceEntry
             })
         }
     } else if (p.price && Array.isArray(p.price)) {

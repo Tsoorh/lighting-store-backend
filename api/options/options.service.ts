@@ -1,8 +1,8 @@
 import { dbService } from '../../services/db.service';
 import { loggerService } from '../../services/logger.service';
-import { 
-    SocketOptions, 
-    DEFAULT_SOCKET_OPTIONS, 
+import {
+    SocketOptions,
+    DEFAULT_SOCKET_OPTIONS,
     SocketOptionCategory,
     SiteOptions,
     DEFAULT_SITE_OPTIONS
@@ -20,37 +20,51 @@ export const optionsService = {
     updateSiteOptions
 };
 
+async function _upsertOptionDoc<T extends Record<string, unknown>>(id: string, data: T): Promise<string> {
+    const sql = `
+        INSERT INTO public.options (id, data, updated_at)
+        VALUES ($1, $2, NOW())
+        ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at
+        RETURNING updated_at;
+    `;
+    const res = await dbService.query(sql, [id, JSON.stringify(data)]);
+    return res.rows[0]?.updated_at
+        ? new Date(res.rows[0].updated_at).toISOString()
+        : new Date().toISOString();
+}
+
+async function _getOptionDoc<T extends Record<string, unknown>>(
+    id: string,
+    defaultData: T
+): Promise<{ data: T; updatedAt: string }> {
+    const sql = `SELECT id, data, updated_at FROM public.options WHERE id = $1;`;
+    const res = await dbService.query(sql, [id]);
+
+    if (res.rows.length === 0) {
+        const updatedAt = await _upsertOptionDoc(id, defaultData);
+        return { data: defaultData, updatedAt };
+    }
+
+    const row = res.rows[0];
+    return {
+        data: (row.data || {}) as T,
+        updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString()
+    };
+}
+
 async function getSocketOptions(): Promise<SocketOptions> {
     try {
-        const sql = `SELECT id, data, updated_at FROM public.options WHERE id = $1;`;
-        const res = await dbService.query(sql, [SOCKET_OPTIONS_ID]);
+        const { data, updatedAt } = await _getOptionDoc(SOCKET_OPTIONS_ID, {
+            lightTypes: [...DEFAULT_SOCKET_OPTIONS.lightTypes],
+            screwTypes: [...DEFAULT_SOCKET_OPTIONS.screwTypes]
+        });
 
-        if (res.rows.length === 0) {
-            const initialDoc: SocketOptions = {
-                ...DEFAULT_SOCKET_OPTIONS,
-                updatedAt: new Date().toISOString()
-            };
-            const insertSql = `
-                INSERT INTO public.options (id, data, updated_at) 
-                VALUES ($1, $2, NOW()) 
-                ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at
-                RETURNING *;
-            `;
-            await dbService.query(insertSql, [
-                SOCKET_OPTIONS_ID,
-                JSON.stringify({
-                    lightTypes: initialDoc.lightTypes,
-                    screwTypes: initialDoc.screwTypes
-                })
-            ]);
-            return initialDoc;
-        }
-
-        const row = res.rows[0];
-        const data = row.data || {};
-        const screwTypes = Array.isArray(data.screwTypes) ? data.screwTypes : [...DEFAULT_SOCKET_OPTIONS.screwTypes];
-        const lightTypes = Array.isArray(data.lightTypes) ? data.lightTypes : [...DEFAULT_SOCKET_OPTIONS.lightTypes];
-        const updatedAt = row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString();
+        const screwTypes = Array.isArray(data.screwTypes)
+            ? (data.screwTypes as string[])
+            : [...DEFAULT_SOCKET_OPTIONS.screwTypes];
+        const lightTypes = Array.isArray(data.lightTypes)
+            ? (data.lightTypes as string[])
+            : [...DEFAULT_SOCKET_OPTIONS.lightTypes];
 
         return {
             _id: SOCKET_OPTIONS_ID,
@@ -89,15 +103,7 @@ async function addSocketOption(category: SocketOptionCategory, rawValue: string)
             lightTypes: category === 'light' ? updatedList : current.lightTypes
         };
 
-        const sql = `
-            INSERT INTO public.options (id, data, updated_at)
-            VALUES ($1, $2, NOW())
-            ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at
-            RETURNING updated_at;
-        `;
-        const res = await dbService.query(sql, [SOCKET_OPTIONS_ID, JSON.stringify(nextData)]);
-        const updatedAt = res.rows[0]?.updated_at ? new Date(res.rows[0].updated_at).toISOString() : new Date().toISOString();
-
+        const updatedAt = await _upsertOptionDoc(SOCKET_OPTIONS_ID, nextData);
         current[field] = updatedList;
         current.updatedAt = updatedAt;
         return current;
@@ -123,15 +129,7 @@ async function removeSocketOption(category: SocketOptionCategory, rawValue: stri
             lightTypes: category === 'light' ? updatedList : current.lightTypes
         };
 
-        const sql = `
-            INSERT INTO public.options (id, data, updated_at)
-            VALUES ($1, $2, NOW())
-            ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at
-            RETURNING updated_at;
-        `;
-        const res = await dbService.query(sql, [SOCKET_OPTIONS_ID, JSON.stringify(nextData)]);
-        const updatedAt = res.rows[0]?.updated_at ? new Date(res.rows[0].updated_at).toISOString() : new Date().toISOString();
-
+        const updatedAt = await _upsertOptionDoc(SOCKET_OPTIONS_ID, nextData);
         current[field] = updatedList;
         current.updatedAt = updatedAt;
         return current;
@@ -148,15 +146,7 @@ async function updateSocketOptions(newOptions: { screwTypes: string[]; lightType
             lightTypes: newOptions.lightTypes.map(l => l.trim()).filter(Boolean)
         };
 
-        const sql = `
-            INSERT INTO public.options (id, data, updated_at)
-            VALUES ($1, $2, NOW())
-            ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at
-            RETURNING updated_at;
-        `;
-        const res = await dbService.query(sql, [SOCKET_OPTIONS_ID, JSON.stringify(nextData)]);
-        const updatedAt = res.rows[0]?.updated_at ? new Date(res.rows[0].updated_at).toISOString() : new Date().toISOString();
-
+        const updatedAt = await _upsertOptionDoc(SOCKET_OPTIONS_ID, nextData);
         return {
             _id: SOCKET_OPTIONS_ID,
             id: SOCKET_OPTIONS_ID,
@@ -171,36 +161,14 @@ async function updateSocketOptions(newOptions: { screwTypes: string[]; lightType
 
 async function getSiteOptions(): Promise<SiteOptions> {
     try {
-        const sql = `SELECT id, data, updated_at FROM public.options WHERE id = $1;`;
-        const res = await dbService.query(sql, [SITE_OPTIONS_ID]);
-
-        if (res.rows.length === 0) {
-            const initialDoc: SiteOptions = {
-                ...DEFAULT_SITE_OPTIONS,
-                updatedAt: new Date().toISOString()
-            };
-            const insertSql = `
-                INSERT INTO public.options (id, data, updated_at)
-                VALUES ($1, $2, NOW())
-                ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at
-                RETURNING *;
-            `;
-            await dbService.query(insertSql, [
-                SITE_OPTIONS_ID,
-                JSON.stringify({ isNewCollectionActive: initialDoc.isNewCollectionActive })
-            ]);
-            return initialDoc;
-        }
-
-        const row = res.rows[0];
-        const data = row.data || {};
-        const isNewCollectionActive = data.isNewCollectionActive !== false;
-        const updatedAt = row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString();
+        const { data, updatedAt } = await _getOptionDoc(SITE_OPTIONS_ID, {
+            isNewCollectionActive: DEFAULT_SITE_OPTIONS.isNewCollectionActive
+        });
 
         return {
             _id: SITE_OPTIONS_ID,
             id: SITE_OPTIONS_ID,
-            isNewCollectionActive,
+            isNewCollectionActive: data.isNewCollectionActive !== false,
             updatedAt
         };
     } catch (err) {
@@ -218,15 +186,7 @@ async function updateSiteOptions(updateData: { isNewCollectionActive: boolean })
             isNewCollectionActive: updateData.isNewCollectionActive
         };
 
-        const sql = `
-            INSERT INTO public.options (id, data, updated_at)
-            VALUES ($1, $2, NOW())
-            ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at
-            RETURNING updated_at;
-        `;
-        const res = await dbService.query(sql, [SITE_OPTIONS_ID, JSON.stringify(nextData)]);
-        const updatedAt = res.rows[0]?.updated_at ? new Date(res.rows[0].updated_at).toISOString() : new Date().toISOString();
-
+        const updatedAt = await _upsertOptionDoc(SITE_OPTIONS_ID, nextData);
         return {
             _id: SITE_OPTIONS_ID,
             id: SITE_OPTIONS_ID,

@@ -14,9 +14,19 @@ function getPool(): Pool {
 
         const isLocal = url.includes('localhost') || url.includes('127.0.0.1') || url.includes('sslmode=disable');
 
+        let ssl: false | { rejectUnauthorized: boolean; ca?: string } = false;
+        if (!isLocal) {
+            const caCert = process.env.POSTGRES_CA_CERT;
+            if (caCert) {
+                ssl = { rejectUnauthorized: true, ca: caCert };
+            } else {
+                ssl = { rejectUnauthorized: process.env.POSTGRES_SSL_VERIFY === 'true' };
+            }
+        }
+
         pool = new Pool({
             connectionString: url,
-            ssl: isLocal ? false : { rejectUnauthorized: false },
+            ssl,
             max: 20,
             idleTimeoutMillis: 30000,
             connectionTimeoutMillis: 10000
@@ -29,9 +39,8 @@ function getPool(): Pool {
     return pool;
 }
 
-async function query<T extends QueryResultRow = any>(text: string, params?: any[]): Promise<QueryResult<T>> {
+async function query<T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]): Promise<QueryResult<T>> {
     const currentPool = getPool();
-    const start = Date.now();
     try {
         const res = await currentPool.query<T>(text, params);
         return res;

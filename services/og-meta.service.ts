@@ -1,38 +1,18 @@
+import { buildCloudinaryUrl, pickPrimaryProductImage } from './cloudinary-url.util';
+
 export type ProductWithMeta = {
     name?: { he?: string; en?: string };
     description?: { he?: string; en?: string };
     imgsUrl?: string[];
-    [key: string]: any;
+    [key: string]: unknown;
 };
 
 export function getProductCardImageUrl(imgsUrl: string[] = []): string {
-    const rawImgs = Array.isArray(imgsUrl) ? imgsUrl : [];
-    const cleanUrls = rawImgs.map((url: string) =>
-        url.replace(/[\r\n\s]+/g, '').replace(/\.[^/.]+$/, '').replace(/^4G8A/i, '')
-    );
-    const filteredUrls = cleanUrls.filter((u: string) => u !== 'coming-soon');
-    const cPhoto = filteredUrls.find((u: string) => u.toUpperCase().startsWith('C_'));
-    const hPhoto = filteredUrls.find((u: string) => u.toUpperCase().startsWith('H_'));
-    const otherPhoto = filteredUrls.find((u: string) => 
-        !u.toUpperCase().startsWith('C_') && 
-        !u.toUpperCase().startsWith('H_') && 
-        !u.toUpperCase().startsWith('S_')
-    );
-    const sPhoto = filteredUrls.find((u: string) => u.toUpperCase().startsWith('S_'));
-
-    const chosenImg = cPhoto || hPhoto || otherPhoto || sPhoto;
+    const chosenImg = pickPrimaryProductImage(imgsUrl);
     if (!chosenImg) {
         return 'https://tiranlasry.com/images/Figma/Tiran_T_Grey_Logo.png';
     }
-
-    const cloudId = process.env.CLOUDINARY_KEY || 'dhixlriwm';
-    const nameWithout4G8A = chosenImg.replace(/^4G8A/i, '');
-    const upper = nameWithout4G8A.toUpperCase();
-    const publicId = (upper.startsWith('C_') || upper.startsWith('H_') || upper.startsWith('S_'))
-        ? nameWithout4G8A
-        : `4G8A${nameWithout4G8A}`;
-
-    return `https://res.cloudinary.com/${cloudId}/image/upload/c_pad,b_white,w_1200,h_630,f_jpg,q_auto/${publicId}`;
+    return buildCloudinaryUrl(chosenImg, 'c_pad,b_white,w_1200,h_630,f_jpg,q_auto');
 }
 
 export function injectProductOpenGraph(html: string, product: ProductWithMeta, pageUrl: string): string {
@@ -66,8 +46,6 @@ export function injectProductOpenGraph(html: string, product: ProductWithMeta, p
     <meta name="twitter:image" content="${ogImage}" />
     `;
 
-    // Replace existing title if present
-    let modified = html.replace(/<title>.*?<\/title>/i, '');
-    // Inject before </head>
+    const modified = html.replace(/<title>.*?<\/title>/i, '');
     return modified.replace('</head>', `${metaTags}\n</head>`);
 }

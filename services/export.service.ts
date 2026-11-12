@@ -1,32 +1,24 @@
 import PDFDocument from 'pdfkit';
 import ExcelJS from 'exceljs';
 import axios from 'axios';
-import { FullProduct } from '../model/product.model';
 import path from 'path';
+import { FullProduct } from '../model/product.model';
+import { buildCloudinaryUrl, pickPrimaryProductImage } from './cloudinary-url.util';
+import { loggerService } from './logger.service';
 
 export const exportService = {
     generatePDF,
     generateExcel
-}
+};
 
-// Hebrew support: PDFKit requires reversing strings for RTL and using a supported font
-function _reverseHebrew(str: string): string {
-    if (!str) return '';
-    // Check if string contains Hebrew characters
-    if (!/[\u0590-\u05FF]/.test(str)) return str;
-    
-    // Reverse the order of the words to account for the Left-to-Right base rendering,
-    // but DO NOT reverse the characters inside the words.
-    // PDFKit's Fontkit handles the RTL character shaping natively for Hebrew letters.
-    return str.split(' ').reverse().join(' ');
-}
+const EXPORT_IMG_TRANSFORM = 'w_300,h_300,c_limit,q_auto,f_jpg';
 
 async function _fetchImageBuffer(url: string): Promise<Buffer | null> {
     try {
         const response = await axios.get(url, { responseType: 'arraybuffer' });
         return Buffer.from(response.data);
     } catch (err) {
-        console.error(`Failed to fetch image from ${url}`, err);
+        loggerService.error(`Failed to fetch image from ${url}`, err);
         return null;
     }
 }
@@ -35,59 +27,45 @@ function _isSupportedImage(buffer: Buffer): boolean {
     if (!buffer || buffer.length < 8) return false;
     // JPEG: FF D8
     if (buffer[0] === 0xFF && buffer[1] === 0xD8) return true;
-    // PNG: 89 50 4E 47 0D 0A 1A 0A
+    // PNG: 89 50 4E 47
     if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) return true;
     return false;
 }
 
-function _getImageUrl(imgsUrl: string[] | undefined) {
-    const cloudId = process.env.CLOUDINARY_KEY || 'dhixlriwm'
-    // Force .jpg extension in the URL and in the transformation for PDF compatibility
-    const transform = 'w_300,h_300,c_limit,q_auto,f_jpg'
-    
-    if (!imgsUrl || imgsUrl.length === 0) return `https://res.cloudinary.com/${cloudId}/image/upload/${transform}/coming-soon.jpg`
-    
-    const cleanUrls = imgsUrl.map(url => url.replace(/[\r\n\s]+/g, '').replace(/\.[^/.]+$/, "").replace(/^4G8A/i, ""))
-    const cPhoto = cleanUrls.find(url => url.toUpperCase().startsWith('C_'))
-    const hPhoto = cleanUrls.find(url => url.toUpperCase().startsWith('H_'))
-    const numPhoto = cleanUrls.find(url => !url.toUpperCase().startsWith('C_') && !url.toUpperCase().startsWith('H_') && !url.toUpperCase().startsWith('S_'))
-    const sPhoto = cleanUrls.find(url => url.toUpperCase().startsWith('S_'))
-    
-    const imgName = cPhoto || hPhoto || numPhoto || sPhoto || 'coming-soon'
-    
-    if (imgName === 'coming-soon') return `https://res.cloudinary.com/${cloudId}/image/upload/${transform}/coming-soon.jpg`
-    const nameWithout4G8A = imgName.replace(/^4G8A/i, '')
-    const upper = nameWithout4G8A.toUpperCase()
-    if (upper.startsWith('C_') || upper.startsWith('H_') || upper.startsWith('S_')) return `https://res.cloudinary.com/${cloudId}/image/upload/${transform}/${nameWithout4G8A}.jpg`
-    return `https://res.cloudinary.com/${cloudId}/image/upload/${transform}/4G8A${nameWithout4G8A}.jpg`
+function _getExportImageUrl(imgsUrl: string[] | undefined): string {
+    const imgName = pickPrimaryProductImage(imgsUrl) || 'coming-soon';
+    return buildCloudinaryUrl(imgName, EXPORT_IMG_TRANSFORM, 'jpg');
+}
+
+async function _prefetchImages(products: FullProduct[], validateFormat = false): Promise<Map<string, Buffer>> {
+    const uniqueImgUrls = Array.from(new Set(products.map(p => _getExportImageUrl(p.imgsUrl))));
+    const imageBuffers = new Map<string, Buffer>();
+
+    await Promise.allSettled(uniqueImgUrls.map(async url => {
+        const buffer = await _fetchImageBuffer(url);
+        if (!buffer) return;
+        if (!validateFormat || _isSupportedImage(buffer)) {
+            imageBuffers.set(url, buffer);
+        } else {
+            loggerService.warn(`Fetched buffer for ${url} is not a supported format (JPEG/PNG). Skipping.`);
+        }
+    }));
+
+    return imageBuffers;
 }
 
 async function generatePDF(products: FullProduct[], title: string): Promise<Buffer> {
-    return new Promise(async (resolve, reject) => {
-        try {
-            const uniqueImgUrls = Array.from(new Set(
-                products.map(p => _getImageUrl(p.imgsUrl)).filter(Boolean)
-            )) as string[];
-            
-            const imageBuffers = new Map<string, Buffer>();
-            await Promise.allSettled(uniqueImgUrls.map(async url => {
-                const buffer = await _fetchImageBuffer(url);
-                if (buffer) {
-                    if (_isSupportedImage(buffer)) {
-                        imageBuffers.set(url, buffer);
-                    } else {
-                        console.warn(`Fetched buffer for ${url} is not a supported format (JPEG/PNG). Skipping.`);
-                    }
-                }
-            }));
+    const imageBuffers = await _prefetchImages(products, true);
 
+    return new Promise((resolve, reject) => {
+        try {
             const doc = new PDFDocument({ margin: 50, size: 'A4' });
             doc.on('error', reject);
             const buffers: Buffer[] = [];
 
             const fontPath = path.join(process.cwd(), 'assets/fonts/Heebo-Regular.ttf');
             const fontBoldPath = path.join(process.cwd(), 'assets/fonts/Heebo-Bold.ttf');
-            
+
             doc.registerFont('Heebo', fontPath);
             doc.registerFont('Heebo-Bold', fontBoldPath);
             doc.font('Heebo');
@@ -95,13 +73,11 @@ async function generatePDF(products: FullProduct[], title: string): Promise<Buff
             doc.on('data', buffers.push.bind(buffers));
             doc.on('end', () => resolve(Buffer.concat(buffers)));
 
-            // Header - Center Aligned English
             doc.font('Heebo-Bold').fontSize(24).text(title, { align: 'center' });
             doc.moveDown();
 
-            // Group by category (using EN names now)
             const categoryNames = Array.from(new Set(products.flatMap(p => p.category?.map(c => c.en) || [])));
-            
+
             for (const catName of categoryNames) {
                 const catProducts = products.filter(p => p.category?.some(c => c.en === catName));
                 if (catProducts.length === 0) continue;
@@ -114,30 +90,27 @@ async function generatePDF(products: FullProduct[], title: string): Promise<Buff
                 for (const product of catProducts) {
                     const prices = (product.price && Array.isArray(product.price) && product.price.length > 0)
                         ? product.price
-                        : [{ wood: { he: '', en: '' }, amount: 0 }]
+                        : [{ wood: { he: '', en: '' }, amount: 0 }];
 
                     for (const priceEntry of prices) {
                         const startY = doc.y;
-                        
-                        // Image (Left side)
+
                         if (product.imgsUrl && product.imgsUrl.length > 0) {
-                            const imgUrl = _getImageUrl(product.imgsUrl);
+                            const imgUrl = _getExportImageUrl(product.imgsUrl);
                             const imgBuffer = imageBuffers.get(imgUrl);
                             if (imgBuffer) {
                                 try {
                                     doc.image(imgBuffer, 50, startY, { fit: [100, 100] });
                                 } catch (imgErr) {
-                                    console.error(`Skipping image draw for product ${product.name.en}`, imgErr);
+                                    loggerService.error(`Skipping image draw for product ${product.name.en}`, imgErr);
                                 }
                             }
                         }
 
-                        // Product Details (Right of the image)
-                        const displayName = priceEntry.wood.en 
+                        const displayName = priceEntry.wood.en
                             ? `${product.name.en} - ${priceEntry.wood.en}`
-                            : product.name.en
+                            : product.name.en;
 
-                        // Use relative coordinates to avoid overflow
                         doc.font('Heebo-Bold').fontSize(12).text(displayName, 160, startY, { width: 350 });
                         if (priceEntry.sku) {
                             doc.font('Heebo').fontSize(10).text(`SKU: ${priceEntry.sku}`, 160, doc.y + 2);
@@ -145,11 +118,10 @@ async function generatePDF(products: FullProduct[], title: string): Promise<Buff
                         doc.font('Heebo').fontSize(10).text(`Price: ₪${priceEntry.amount?.toLocaleString() || 'N/A'}`, 160, doc.y + 2);
                         doc.font('Heebo').fontSize(10).text(`Socket: ${product.socketType?.screwType || 'N/A'}`, 160, doc.y + 2);
 
-                        // Ensure enough space for the next item
                         const contentBottom = doc.y;
                         const imageBottom = startY + 110;
                         doc.y = Math.max(contentBottom, imageBottom);
-                        
+
                         doc.moveDown(1);
                         if (doc.y > 700) doc.addPage();
                     }
@@ -165,20 +137,11 @@ async function generatePDF(products: FullProduct[], title: string): Promise<Buff
 }
 
 async function generateExcel(products: FullProduct[], title: string): Promise<Buffer> {
-    const uniqueImgUrls = Array.from(new Set(
-        products.map(p => _getImageUrl(p.imgsUrl)).filter(Boolean)
-    )) as string[];
-    
-    const imageBuffers = new Map<string, Buffer>();
-    await Promise.allSettled(uniqueImgUrls.map(async url => {
-        const buffer = await _fetchImageBuffer(url);
-        if (buffer) imageBuffers.set(url, buffer);
-    }));
+    const imageBuffers = await _prefetchImages(products);
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Price List');
 
-    // Title Row
     sheet.mergeCells('A1:E1');
     const titleCell = sheet.getCell('A1');
     titleCell.value = title;
@@ -186,31 +149,30 @@ async function generateExcel(products: FullProduct[], title: string): Promise<Bu
     titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
     sheet.getRow(1).height = 30;
 
-    // Header Row (English)
     const headerRow = sheet.addRow(['Image', 'SKU', 'Product Name', 'Category', 'Socket', 'Price']);
     headerRow.font = { bold: true };
     headerRow.alignment = { horizontal: 'center' };
-    sheet.getColumn(1).width = 20; // Image
-    sheet.getColumn(2).width = 15; // SKU
-    sheet.getColumn(3).width = 40; // Name
-    sheet.getColumn(4).width = 25; // Category
-    sheet.getColumn(5).width = 20; // Socket
-    sheet.getColumn(6).width = 15; // Price
+    sheet.getColumn(1).width = 20;
+    sheet.getColumn(2).width = 15;
+    sheet.getColumn(3).width = 40;
+    sheet.getColumn(4).width = 25;
+    sheet.getColumn(5).width = 20;
+    sheet.getColumn(6).width = 15;
 
     for (const product of products) {
         const prices = (product.price && Array.isArray(product.price) && product.price.length > 0)
             ? product.price
-            : [{ wood: { he: '', en: '' }, amount: 0 }]
+            : [{ wood: { he: '', en: '' }, amount: 0 }];
 
         for (const priceEntry of prices) {
-            const displayName = priceEntry.wood.en 
+            const displayName = priceEntry.wood.en
                 ? `${product.name.en} - ${priceEntry.wood.en}`
-                : product.name.en
+                : product.name.en;
 
             const row = sheet.addRow([
-                '', 
+                '',
                 priceEntry.sku || '',
-                displayName, 
+                displayName,
                 product.category?.map(c => c.en).join(', ') || '',
                 product.socketType?.screwType || '',
                 priceEntry.amount
@@ -219,12 +181,12 @@ async function generateExcel(products: FullProduct[], title: string): Promise<Bu
             row.alignment = { vertical: 'middle', horizontal: 'left' };
 
             if (product.imgsUrl && product.imgsUrl.length > 0) {
-                const imgUrl = _getImageUrl(product.imgsUrl);
+                const imgUrl = _getExportImageUrl(product.imgsUrl);
                 const imgBuffer = imageBuffers.get(imgUrl);
                 if (imgBuffer) {
                     try {
                         const imageId = workbook.addImage({
-                            buffer: imgBuffer as any,
+                            buffer: imgBuffer as unknown as ExcelJS.Buffer,
                             extension: 'jpeg',
                         });
                         sheet.addImage(imageId, {
@@ -232,8 +194,8 @@ async function generateExcel(products: FullProduct[], title: string): Promise<Bu
                             ext: { width: 100, height: 100 },
                             editAs: 'oneCell'
                         });
-                    } catch(e) {
-                        console.error("Failed to draw image on excel", e)
+                    } catch (e) {
+                        loggerService.error('Failed to draw image on excel', e);
                     }
                 }
             }

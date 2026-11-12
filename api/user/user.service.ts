@@ -16,7 +16,8 @@ export const userService = {
     updateBulkMultiplier
 };
 
-function _mapRowToUser(row: any): User {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function _mapRowToUser(row: Record<string, any>): User {
     return {
         _id: row.id,
         id: row.id,
@@ -112,7 +113,7 @@ async function update(user: User): Promise<User> {
         const showPrices = user.showPrices !== false;
 
         let sql: string;
-        let values: any[];
+        let values: unknown[];
 
         if (user.password && user.password.trim()) {
             const passwordHash = await bcrypt.hash(user.password, SALTROUNDS);

@@ -76,9 +76,9 @@ describe('Socket Options Unit Tests', () => {
                 updatedAt: new Date().toISOString()
             };
 
-            queryMock = jest.spyOn(dbService, 'query').mockImplementation(async (sql: string, params?: any[]) => {
+            queryMock = jest.spyOn(dbService, 'query').mockImplementation((async (sql: string, params?: unknown[]) => {
                 if (sql.includes('SELECT') && params && params[0] === 'socket_options') {
-                    if (!mockDoc) return { rows: [], rowCount: 0 } as any;
+                    if (!mockDoc) return { rows: [], rowCount: 0 };
                     return {
                         rows: [{
                             id: 'socket_options',
@@ -89,11 +89,11 @@ describe('Socket Options Unit Tests', () => {
                             updated_at: mockDoc.updatedAt
                         }],
                         rowCount: 1
-                    } as any;
+                    };
                 }
 
                 if (sql.includes('INSERT INTO public.options') && params) {
-                    const parsedData = typeof params[1] === 'string' ? JSON.parse(params[1]) : params[1];
+                    const parsedData = typeof params[1] === 'string' ? JSON.parse(params[1]) : (params[1] as { screwTypes?: string[]; lightTypes?: string[] });
                     const now = new Date().toISOString();
                     mockDoc = {
                         _id: 'socket_options',
@@ -108,11 +108,11 @@ describe('Socket Options Unit Tests', () => {
                             updated_at: now
                         }],
                         rowCount: 1
-                    } as any;
+                    };
                 }
 
-                return { rows: [], rowCount: 0 } as any;
-            });
+                return { rows: [], rowCount: 0 };
+            }) as unknown as typeof dbService.query);
         });
 
         afterEach(() => {
