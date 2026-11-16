@@ -17,7 +17,9 @@ export const optionsService = {
     removeSocketOption,
     updateSocketOptions,
     getSiteOptions,
-    updateSiteOptions
+    updateSiteOptions,
+    getOptionDoc: _getOptionDoc,
+    upsertOptionDoc: _upsertOptionDoc
 };
 
 async function _upsertOptionDoc<T extends Record<string, unknown>>(id: string, data: T): Promise<string> {
@@ -162,13 +164,15 @@ async function updateSocketOptions(newOptions: { screwTypes: string[]; lightType
 async function getSiteOptions(): Promise<SiteOptions> {
     try {
         const { data, updatedAt } = await _getOptionDoc(SITE_OPTIONS_ID, {
-            isNewCollectionActive: DEFAULT_SITE_OPTIONS.isNewCollectionActive
+            isNewCollectionActive: DEFAULT_SITE_OPTIONS.isNewCollectionActive,
+            isGalleryActive: DEFAULT_SITE_OPTIONS.isGalleryActive
         });
 
         return {
             _id: SITE_OPTIONS_ID,
             id: SITE_OPTIONS_ID,
             isNewCollectionActive: data.isNewCollectionActive !== false,
+            isGalleryActive: data.isGalleryActive === true,
             updatedAt
         };
     } catch (err) {
@@ -180,17 +184,22 @@ async function getSiteOptions(): Promise<SiteOptions> {
     }
 }
 
-async function updateSiteOptions(updateData: { isNewCollectionActive: boolean }): Promise<SiteOptions> {
+async function updateSiteOptions(updateData: {
+    isNewCollectionActive?: boolean;
+    isGalleryActive?: boolean;
+}): Promise<SiteOptions> {
     try {
+        const current = await getSiteOptions();
         const nextData = {
-            isNewCollectionActive: updateData.isNewCollectionActive
+            isNewCollectionActive: updateData.isNewCollectionActive ?? current.isNewCollectionActive,
+            isGalleryActive: updateData.isGalleryActive ?? current.isGalleryActive
         };
 
         const updatedAt = await _upsertOptionDoc(SITE_OPTIONS_ID, nextData);
         return {
             _id: SITE_OPTIONS_ID,
             id: SITE_OPTIONS_ID,
-            isNewCollectionActive: updateData.isNewCollectionActive,
+            ...nextData,
             updatedAt
         };
     } catch (err) {

@@ -17,8 +17,12 @@ export const socketOptionsUpdateSchema = z.object({
 });
 
 export const siteOptionsUpdateSchema = z.object({
-    isNewCollectionActive: z.boolean()
-});
+    isNewCollectionActive: z.boolean().optional(),
+    isGalleryActive: z.boolean().optional()
+}).refine(
+    (data) => data.isNewCollectionActive !== undefined || data.isGalleryActive !== undefined,
+    { message: 'At least one site option must be provided' }
+);
 
 export type SocketOptionAddInput = z.infer<typeof socketOptionAddSchema>;
 export type SocketOptionsUpdateInput = z.infer<typeof socketOptionsUpdateSchema>;

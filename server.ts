@@ -76,6 +76,7 @@ import { productService } from "./api/product/products.service";
 import { userRoutes } from "./api/user/user.route";
 import { siteMediaRoutes } from "./api/site-media/site-media.route";
 import { optionsRoutes } from "./api/options/options.route";
+import { galleryRoutes } from "./api/gallery/gallery.route";
 import { dbService } from "./services/db.service";
 
 app.use('/api/auth',authRoutes)
@@ -83,6 +84,7 @@ app.use('/api/product',productRoutes)
 app.use('/api/user', userRoutes)
 app.use('/api/site-media', siteMediaRoutes)
 app.use('/api/options', optionsRoutes)
+app.use('/api/gallery', galleryRoutes)
 
 // Graceful shutdown
 const shutdown = async (signal: string) => {

@@ -28,11 +28,13 @@ export interface SiteOptions {
     _id: string;
     id?: string;
     isNewCollectionActive: boolean;
+    isGalleryActive: boolean;
     updatedAt?: string;
 }
 
 export const DEFAULT_SITE_OPTIONS: SiteOptions = {
     _id: 'site_options',
     id: 'site_options',
-    isNewCollectionActive: true
+    isNewCollectionActive: true,
+    isGalleryActive: false
 };
