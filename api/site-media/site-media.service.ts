@@ -22,12 +22,6 @@ export class VersionConflictError extends Error {
     }
 }
 
-cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_KEY,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET
-})
-
 const HOMEPAGE_MEDIA_ID = 'homepage_media'
 
 export const siteMediaService = {
@@ -330,76 +324,102 @@ async function publishMedia(
         updatedAt: now
     }
 
-    if (!current) {
-        const insertSql = `
-            INSERT INTO public.site_media (
-                id, version, publication_id, hero_video, full_width_banner, gallery, updated_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, NOW());
-        `
-        await dbService.query(insertSql, [
-            HOMEPAGE_MEDIA_ID,
-            newVersion,
-            publicationId,
-            JSON.stringify(configToSave.heroVideo),
-            JSON.stringify(configToSave.fullWidthBanner),
-            JSON.stringify(configToSave.gallery)
-        ])
-    } else {
-        if (baseVersion !== currentVersion && baseVersion !== 0 && typeof current.version === 'number') {
-            throw new VersionConflictError(`Conflict: published version is ${currentVersion}, but your draft was based on version ${baseVersion}.`)
-        }
-
-        const updateSql = `
-            UPDATE public.site_media SET
-                version = $1,
-                publication_id = $2,
-                hero_video = $3,
-                full_width_banner = $4,
-                gallery = $5,
-                updated_at = NOW()
-            WHERE id = $6 AND (version = $7 OR version = $8 OR version IS NULL)
-            RETURNING version;
-        `
-        const updateResult = await dbService.query(updateSql, [
-            newVersion,
-            publicationId,
-            JSON.stringify(configToSave.heroVideo),
-            JSON.stringify(configToSave.fullWidthBanner),
-            JSON.stringify(configToSave.gallery),
-            HOMEPAGE_MEDIA_ID,
-            baseVersion,
-            currentVersion
-        ])
-
-        if (updateResult.rowCount === 0) {
-            const latestDoc = await getSiteMedia()
-            const latestVersion = latestDoc?.version ?? 0
-            loggerService.warn(`Version conflict during site media publish. Expected: ${baseVersion}, Found: ${latestVersion}`)
-            throw new VersionConflictError(`Conflict: published version is ${latestVersion}, but your draft was based on version ${baseVersion}.`)
-        }
+    if (current && baseVersion !== currentVersion && baseVersion !== 0 && typeof current.version === 'number') {
+        throw new VersionConflictError(`Conflict: published version is ${currentVersion}, but your draft was based on version ${baseVersion}.`)
     }
 
-    // Commit audit log entries
-    if (logEntries.length > 0) {
-        for (const entry of logEntries) {
-            const entryId = crypto.randomBytes(12).toString('hex')
-            const logSql = `
-                INSERT INTO public.site_media_logs (
-                    id, publication_id, action_type, media_type, slot_id, slot_name, previous_asset, new_asset, replaced_at, replaced_by
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
+    let client: Awaited<ReturnType<typeof dbService.getClient>> | null = null
+    try {
+        client = await dbService.getClient()
+        await client.query('BEGIN')
+    } catch {
+        client = null
+    }
+
+    const execQuery = (text: string, params?: unknown[]) =>
+        client ? client.query(text, params) : dbService.query(text, params)
+
+    try {
+        if (!current) {
+            const insertSql = `
+                INSERT INTO public.site_media (
+                    id, version, publication_id, hero_video, full_width_banner, gallery, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, NOW());
             `
-            await dbService.query(logSql, [
-                entryId,
-                entry.publicationId,
-                entry.actionType,
-                entry.mediaType,
-                entry.slotId,
-                JSON.stringify(entry.slotName),
-                JSON.stringify(entry.previousAsset),
-                JSON.stringify(entry.newAsset),
-                entry.replacedAt,
-                JSON.stringify(entry.replacedBy)
+            await execQuery(insertSql, [
+                HOMEPAGE_MEDIA_ID,
+                newVersion,
+                publicationId,
+                JSON.stringify(configToSave.heroVideo),
+                JSON.stringify(configToSave.fullWidthBanner),
+                JSON.stringify(configToSave.gallery)
             ])
+        } else {
+            const updateSql = `
+                UPDATE public.site_media SET
+                    version = $1,
+                    publication_id = $2,
+                    hero_video = $3,
+                    full_width_banner = $4,
+                    gallery = $5,
+                    updated_at = NOW()
+                WHERE id = $6 AND (version = $7 OR version = $8 OR version IS NULL)
+                RETURNING version;
+            `
+            const updateResult = await execQuery(updateSql, [
+                newVersion,
+                publicationId,
+                JSON.stringify(configToSave.heroVideo),
+                JSON.stringify(configToSave.fullWidthBanner),
+                JSON.stringify(configToSave.gallery),
+                HOMEPAGE_MEDIA_ID,
+                baseVersion,
+                currentVersion
+            ])
+
+            if (updateResult.rowCount === 0) {
+                const latestDoc = await getSiteMedia()
+                const latestVersion = latestDoc?.version ?? 0
+                loggerService.warn(`Version conflict during site media publish. Expected: ${baseVersion}, Found: ${latestVersion}`)
+                throw new VersionConflictError(`Conflict: published version is ${latestVersion}, but your draft was based on version ${baseVersion}.`)
+            }
+        }
+
+        // Commit audit log entries inside the same transaction
+        if (logEntries.length > 0) {
+            for (const entry of logEntries) {
+                const entryId = crypto.randomBytes(12).toString('hex')
+                const logSql = `
+                    INSERT INTO public.site_media_logs (
+                        id, publication_id, action_type, media_type, slot_id, slot_name, previous_asset, new_asset, replaced_at, replaced_by
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
+                `
+                await execQuery(logSql, [
+                    entryId,
+                    entry.publicationId,
+                    entry.actionType,
+                    entry.mediaType,
+                    entry.slotId,
+                    JSON.stringify(entry.slotName),
+                    JSON.stringify(entry.previousAsset),
+                    JSON.stringify(entry.newAsset),
+                    entry.replacedAt,
+                    JSON.stringify(entry.replacedBy)
+                ])
+            }
+        }
+
+        if (client) {
+            await client.query('COMMIT')
+        }
+    } catch (txErr) {
+        if (client) {
+            await client.query('ROLLBACK').catch(() => {})
+        }
+        throw txErr
+    } finally {
+        if (client) {
+            client.release()
         }
     }
 

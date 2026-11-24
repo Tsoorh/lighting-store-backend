@@ -10,6 +10,7 @@ export const galleryService = {
     getGalleryConfig,
     updateGalleryConfig,
     generateUploadSignature,
+    clearProductReference,
 };
 
 async function getGalleryConfig(): Promise<GalleryConfig> {
@@ -92,4 +93,15 @@ function generateUploadSignature() {
         publicId,
         folder,
     };
+}
+
+async function clearProductReference(productId: string): Promise<void> {
+    if (!productId) return;
+    const current = await getGalleryConfig();
+    const hasMatch = current.items.some((item) => item.productId === productId);
+    if (!hasMatch) return;
+    const updatedItems = current.items.map((item) =>
+        item.productId === productId ? { ...item, productId: null } : item
+    );
+    await updateGalleryConfig(updatedItems);
 }

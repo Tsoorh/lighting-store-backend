@@ -12,10 +12,18 @@ export const exportService = {
 };
 
 const EXPORT_IMG_TRANSFORM = 'w_300,h_300,c_limit,q_auto,f_jpg';
+const IMAGE_FETCH_TIMEOUT_MS = 8000;
+const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const IMAGE_FETCH_CONCURRENCY = 8;
 
 async function _fetchImageBuffer(url: string): Promise<Buffer | null> {
     try {
-        const response = await axios.get(url, { responseType: 'arraybuffer' });
+        const response = await axios.get(url, {
+            responseType: 'arraybuffer',
+            timeout: IMAGE_FETCH_TIMEOUT_MS,
+            maxContentLength: IMAGE_MAX_BYTES,
+            maxBodyLength: IMAGE_MAX_BYTES,
+        });
         return Buffer.from(response.data);
     } catch (err) {
         loggerService.error(`Failed to fetch image from ${url}`, err);
@@ -41,15 +49,18 @@ async function _prefetchImages(products: FullProduct[], validateFormat = false):
     const uniqueImgUrls = Array.from(new Set(products.map(p => _getExportImageUrl(p.imgsUrl))));
     const imageBuffers = new Map<string, Buffer>();
 
-    await Promise.allSettled(uniqueImgUrls.map(async url => {
-        const buffer = await _fetchImageBuffer(url);
-        if (!buffer) return;
-        if (!validateFormat || _isSupportedImage(buffer)) {
-            imageBuffers.set(url, buffer);
-        } else {
-            loggerService.warn(`Fetched buffer for ${url} is not a supported format (JPEG/PNG). Skipping.`);
-        }
-    }));
+    for (let i = 0; i < uniqueImgUrls.length; i += IMAGE_FETCH_CONCURRENCY) {
+        const chunk = uniqueImgUrls.slice(i, i + IMAGE_FETCH_CONCURRENCY);
+        await Promise.allSettled(chunk.map(async url => {
+            const buffer = await _fetchImageBuffer(url);
+            if (!buffer) return;
+            if (!validateFormat || _isSupportedImage(buffer)) {
+                imageBuffers.set(url, buffer);
+            } else {
+                loggerService.warn(`Fetched buffer for ${url} is not a supported format (JPEG/PNG). Skipping.`);
+            }
+        }));
+    }
 
     return imageBuffers;
 }

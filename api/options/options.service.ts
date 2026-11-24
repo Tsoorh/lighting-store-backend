@@ -25,8 +25,10 @@ export const optionsService = {
 async function _upsertOptionDoc<T extends Record<string, unknown>>(id: string, data: T): Promise<string> {
     const sql = `
         INSERT INTO public.options (id, data, updated_at)
-        VALUES ($1, $2, NOW())
-        ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at
+        VALUES ($1, $2::jsonb, NOW())
+        ON CONFLICT (id) DO UPDATE
+        SET data = COALESCE(public.options.data, '{}'::jsonb) || EXCLUDED.data,
+            updated_at = EXCLUDED.updated_at
         RETURNING updated_at;
     `;
     const res = await dbService.query(sql, [id, JSON.stringify(data)]);

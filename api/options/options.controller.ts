@@ -46,7 +46,7 @@ async function addSocketOption(req: Request, res: Response) {
         res.json(updated);
     } catch (err: unknown) {
         loggerService.error('optionsController.addSocketOption failed', err);
-        res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to add socket option' });
+        res.status(500).json({ error: 'Failed to add socket option' });
     }
 }
 
@@ -70,7 +70,7 @@ async function removeSocketOption(req: Request, res: Response) {
         res.json(updated);
     } catch (err: unknown) {
         loggerService.error('optionsController.removeSocketOption failed', err);
-        res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to remove socket option' });
+        res.status(500).json({ error: 'Failed to remove socket option' });
     }
 }
 
@@ -88,7 +88,7 @@ async function updateSocketOptions(req: Request, res: Response) {
         res.json(updated);
     } catch (err: unknown) {
         loggerService.error('optionsController.updateSocketOptions failed', err);
-        res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to update socket options' });
+        res.status(500).json({ error: 'Failed to update socket options' });
     }
 }
 
@@ -116,7 +116,7 @@ async function updateSiteOptions(req: Request, res: Response) {
         res.json(updated);
     } catch (err: unknown) {
         loggerService.error('optionsController.updateSiteOptions failed', err);
-        res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to update site options' });
+        res.status(500).json({ error: 'Failed to update site options' });
     }
 }
 

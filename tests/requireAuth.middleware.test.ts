@@ -10,7 +10,7 @@ jest.mock('../services/logger.service', () => ({
 import { Request, Response, NextFunction } from 'express';
 import { asyncLocalStorage } from '../services/als.service';
 import { userService } from '../api/user/user.service';
-import { requireAdmin } from '../middlewares/requireAuth.middleware';
+import { requireAdmin, requireAuth } from '../middlewares/requireAuth.middleware';
 import type { Miniuser } from '../model/user.model';
 
 function createMockRes() {
@@ -108,5 +108,27 @@ describe('requireAdmin live DB verification', () => {
 
         expect(next).toHaveBeenCalledTimes(1);
         expect(store.loggedinUser.fullname).toBe('Updated DB Name');
+    });
+
+    it('requireAuth rejects deleted users with 401 and syncs live multiplier for active users', async () => {
+        const req = { url: '/api/product/export/pdf' } as Request;
+        const res = createMockRes();
+        const next = jest.fn() as NextFunction;
+        const deletedSupplier: Miniuser = {
+            _id: 'sup-deleted',
+            fullname: 'Deleted Supplier',
+            username: 'sup1',
+            role: 'supplier',
+            priceMultiplier: 0.7,
+        };
+
+        jest.spyOn(userService, 'getById').mockResolvedValueOnce(null);
+
+        await asyncLocalStorage.run({ loggedinUser: deletedSupplier }, () =>
+            requireAuth(req, res, next)
+        );
+
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(next).not.toHaveBeenCalled();
     });
 });

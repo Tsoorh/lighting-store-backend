@@ -26,7 +26,7 @@ async function createUploadSignature(req: Request, res: Response) {
     } catch (err: unknown) {
         loggerService.error('galleryController.createUploadSignature failed', err);
         res.status(500).json({
-            error: err instanceof Error ? err.message : 'Failed to generate upload signature',
+            error: 'Failed to generate upload signature',
         });
     }
 }
@@ -46,7 +46,7 @@ async function updateGallery(req: Request, res: Response) {
     } catch (err: unknown) {
         loggerService.error('galleryController.updateGallery failed', err);
         res.status(500).json({
-            error: err instanceof Error ? err.message : 'Failed to update gallery configuration',
+            error: 'Failed to update gallery configuration',
         });
     }
 }

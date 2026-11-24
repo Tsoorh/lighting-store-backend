@@ -1,8 +1,9 @@
 import { Request, Response } from "express"
 import { convertUserToMiniUser, userService } from "./user.service"
 import { loggerService } from "../../services/logger.service"
-import { User, UserIdParams, UserInBody, UsernameParams } from "../../model/user.model"
+import { Miniuser, User, UserIdParams, UserInBody, UsernameParams } from "../../model/user.model"
 import { bulkMultiplierSchema, saveUserSchema } from "./user.schema"
+import { asyncLocalStorage } from "../../services/als.service"
 
 
 
@@ -34,6 +35,19 @@ export async function saveUser(req: Request<Record<string, never>, unknown, User
         return
     }
     const user = validation.data.user as User
+    const { loggedinUser } = (asyncLocalStorage.getStore() as { loggedinUser?: Miniuser }) || {}
+
+    if (
+        user._id &&
+        loggedinUser?._id &&
+        String(user._id) === String(loggedinUser._id) &&
+        user.role &&
+        user.role !== 'admin'
+    ) {
+        res.status(400).send("Cannot demote your own admin account")
+        return
+    }
+
     try {
         const existingUser = await userService.getByUsername(user.username)
         if (existingUser && existingUser._id?.toString() !== user._id?.toString()) {
@@ -50,12 +64,18 @@ export async function saveUser(req: Request<Record<string, never>, unknown, User
         res.send(miniUser)
     } catch (err) {
         loggerService.error(err)
-        res.status(400).send(err instanceof Error ? err.message : "Couldn't save user")
+        const safeMsg = err instanceof Error && err.message === "Username already taken" ? err.message : "Couldn't save user"
+        res.status(400).send(safeMsg)
     }
 }
 
 export async function removeUser(req: Request<UserIdParams>, res: Response) {
     const { userId } = req.params
+    const { loggedinUser } = (asyncLocalStorage.getStore() as { loggedinUser?: Miniuser }) || {}
+    if (loggedinUser?._id && String(loggedinUser._id) === String(userId)) {
+        res.status(400).send("Cannot delete your own admin account")
+        return
+    }
     try {
         const deletedId = await userService.remove(userId)
         res.send(deletedId);

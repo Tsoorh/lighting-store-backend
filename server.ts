@@ -95,6 +95,20 @@ const shutdown = async (signal: string) => {
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('unhandledRejection', (reason) => {
+    loggerService.error('Unhandled Promise Rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+    loggerService.error('Uncaught Exception:', err);
+});
+
+const REQUIRED_ENV_KEYS = ['POSTGRES_URL', 'ACCESS_TOKEN_KEY', 'REFRESH_TOKEN_KEY'] as const;
+for (const envKey of REQUIRED_ENV_KEYS) {
+    if (!process.env[envKey]) {
+        loggerService.error(`FATAL: Required environment variable ${envKey} is missing.`);
+        if (isProd) process.exit(1);
+    }
+}
 
 
 

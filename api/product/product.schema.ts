@@ -41,8 +41,20 @@ export const ProductSaveSchema = z.object({
     category: z.array(HebrewEnglishSchema).min(1, 'At least one category is required'),
     material: z.array(HebrewEnglishSchema).optional().default([]),
     woodType: z.array(HebrewEnglishSchema).optional().default([]),
-    imgsUrl: z.array(z.string()).optional().default([]),
+    imgsUrl: z.array(
+        z.string()
+            .trim()
+            .min(1)
+            .max(200)
+            .regex(/^[a-zA-Z0-9_./-]+$/, 'Invalid image identifier')
+            .refine((val) => !val.includes('..'), 'Path traversal is not allowed')
+    ).optional().default([]),
     size: z.array(ProductSizeSchema).min(1, 'At least one size is required'),
     socketType: SocketTypeSchema.optional(),
     diameter: z.number().nullable().optional(), // FullProduct has diameter: number but also size[]
+});
+
+export const ProductUploadSignatureSchema = z.object({
+    type: z.enum(['C', 'H', 'S']),
+    category: z.enum(['P', 'C', 'W']),
 });

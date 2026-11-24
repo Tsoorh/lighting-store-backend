@@ -21,6 +21,12 @@ const COOKIES_OPTIONS_REFRESH: CookieOptions = {
 
 
 
+const SAFE_AUTH_ERRORS = new Set([
+    'Username or password is incorrect',
+    'Username already taken',
+    'Missing required information',
+]);
+
 export async function registerCont(req: Request<Record<string, never>, unknown, {newuser: User}>, res: Response) {
     const validation = registerSchema.safeParse(req.body)
     if (!validation.success) {
@@ -32,7 +38,8 @@ export async function registerCont(req: Request<Record<string, never>, unknown, 
         res.status(200).send(newMiniUser)
     } catch (err) {
         loggerService.error("Couldn't register: ", err)
-        res.status(400).send({ error: err instanceof Error ? err.message : 'Failed to register' })
+        const msg = err instanceof Error && SAFE_AUTH_ERRORS.has(err.message) ? err.message : 'Failed to register'
+        res.status(400).send({ error: msg })
     }
 }
 
@@ -55,7 +62,8 @@ export async function loginCont(req: Request<Record<string, never>, unknown, Cre
         res.status(200).send(miniUser)
     } catch (err) {
         loggerService.error("Couldn't login: ", err)
-        res.status(400).send({ error: err instanceof Error ? err.message : 'Failed to login' })
+        const msg = err instanceof Error && SAFE_AUTH_ERRORS.has(err.message) ? err.message : 'Failed to login'
+        res.status(400).send({ error: msg })
     }
 }
 

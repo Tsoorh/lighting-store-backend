@@ -57,7 +57,8 @@ async function query(filterBy: FilterBy = {}): Promise<FullProduct[]> {
 
     // 3. Search text (multilingual in name & description)
     if (filterBy.txt && filterBy.txt.trim()) {
-        values.push(`%${filterBy.txt.trim()}%`)
+        const escapedTxt = filterBy.txt.trim().slice(0, 100).replace(/[%_\\]/g, '\\$&')
+        values.push(`%${escapedTxt}%`)
         const idx = values.length
         conditions.push(`(
             name->>'en' ILIKE $${idx} OR 

@@ -38,7 +38,7 @@ async function createUploadSignature(req: Request, res: Response) {
         res.json(signatureData)
     } catch (err: unknown) {
         loggerService.error('siteMediaController.createUploadSignature failed', err)
-        res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to generate upload signature' })
+        res.status(500).json({ error: 'Failed to generate upload signature' })
     }
 }
 
@@ -65,7 +65,7 @@ async function publishMedia(req: Request, res: Response) {
             return res.status(409).json({ error: message, isConflict: true })
         }
         loggerService.error('siteMediaController.publishMedia failed', err)
-        res.status(500).json({ error: message })
+        res.status(500).json({ error: 'Failed to publish media updates' })
     }
 }
 

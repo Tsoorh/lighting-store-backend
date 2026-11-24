@@ -1,9 +1,16 @@
 import { z } from 'zod';
 
-function isHttpUrl(url: string): boolean {
+function isTrustedGalleryImageUrl(url: string): boolean {
+    const trimmed = url.trim();
+    if (trimmed.startsWith('/images/') && !trimmed.includes('..')) {
+        return true;
+    }
     try {
-        const parsed = new URL(url.trim());
-        return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+        const parsed = new URL(trimmed);
+        return (
+            (parsed.protocol === 'https:' || parsed.protocol === 'http:') &&
+            parsed.hostname === 'res.cloudinary.com'
+        );
     } catch {
         return false;
     }
@@ -14,8 +21,8 @@ export const galleryCategorySchema = z.enum(['pendant', 'wall', 'ceiling', 'proj
 export const galleryItemSchema = z.object({
     id: z.string().trim().min(1, 'Gallery item id is required').max(100),
     url: z.string().trim().min(1, 'Image URL is required').max(1000).refine(
-        isHttpUrl,
-        { message: 'Image URL must be a valid http(s):// URL' }
+        isTrustedGalleryImageUrl,
+        { message: 'Image URL must be a valid Cloudinary or local /images/ URL' }
     ),
     publicId: z.string().trim().max(300).nullable().optional(),
     title: z.object({

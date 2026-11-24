@@ -19,8 +19,9 @@ export const loggerService = {
 }
 
 
+const isProd = process.env.NODE_ENV === 'production'
 const logsDir: string = './logs'
-if (!fs.existsSync(logsDir)) {
+if (!isProd && !fs.existsSync(logsDir)) {
     fs.mkdirSync(logsDir)
 }
 
@@ -41,8 +42,10 @@ function doLog(level: logLevel, ...args: logArgs) {
     )
     const line = `${getTime()} - ${level} - ${strs.join(' | ')}\n`
     console.log(line)
-    fs.appendFile('./logs/backend.log', line, (err) => {
-        if (err) console.log('FATAL: cannot write to log file')
-    })
+    if (!isProd) {
+        fs.appendFile('./logs/backend.log', line, (err) => {
+            if (err) console.log('FATAL: cannot write to log file')
+        })
+    }
 }
 
